@@ -6,25 +6,25 @@
 
 > **ABSOLUTE RULE — RECEIVE ONLY.** Nothing in this project ever sends anything to the car's CAN bus or the MCU. The dash app only *subscribes* to the stock CAN service and *receives* data. This is enforced in code (one class, two allowed binder calls: subscribe/unsubscribe) and by a build-time guard (`app/tools/check_readonly.sh`) that refuses to build if any write path is referenced. Never weaken or bypass it.
 
-A **read-only** aftermarket instrument-cluster app and tooling for the Carview / ZIQI "A007" 10.25" Tesla Model 3/Y Android cluster (also sold as Hansshow / Tesery / VJOYCAR / Satonic — same OEM hardware).
+A **read-only** replacement instrument-cluster app and tooling for the Carview / ZIQI "A007" 10.25" Tesla Model 3/Y Android cluster (sold as Hansshow / Tesery / VJOYCAR / Satonic). 
 
-The goal: a clean replacement Home/dashboard that shows the real car data (speed, battery %, gear, odometer, TPMS, lights, parking sensors, doors) and hands off to CarPlay / Android Auto / the reverse camera — **without ever writing to the car**, and fully reversible.
+The goal: a clean replacement Home/dashboard fixing some of the jank in the software that will never come via the overpromised OTA. Real car data (speed, battery %, gear, odometer, TPMS, lights, parking sensors, doors) and hands off to CarPlay / Android Auto / the reverse camera — **without ever writing to the car**, and fully reversible.
 
 ## Why "Binnacle"?
-On a ship, the binnacle is the stand in front of the helm that holds the compass, lit so the helmsman can read it at a glance. These clusters sit in the same spot, in front of the driver, holding the instruments. The icon is a compass card with a red lubber line, the mark a helmsman steers by.
+On a ship, the binnacle is the stand in front of the helm that holds the compass, lit so the helmsman can read it at a glance.
 
 ## Features
 - **Live car data, never written to:** speed, gear (R P N D), speed-limit sign, indicators and lights, power and regen bar, tyre pressures (psi or bar), parking sensors, doors, boot and frunk, outside temperature, odometer.
 - **Your car, in 3D:** a right-hand-drive Model 3 that turns to show whichever door is open, opens it, and highlights the boot and frunk. In Drive it sits on a moving road with headlight glow, and on Autopilot the lane turns blue (or a rainbow road, if you like).
-- **Real battery %:** decoded from a field the stock software mislabels (see below), with a range estimate, a charging animation, and a quiet "Estimated" label until the car reports in after waking.
+- **Real battery %:** decoded from a field the stock software mislabels (see below), with a range estimate and charging animation.
 - **Efficiency:** Wh/km over the last 5 km, a 15-minute power and regen graph, and this drive's totals.
-- **GPS compass** while you're moving.
+- **GPS compass**
 - **Parking sensors you can read:** coloured arcs around the car, a STOP sign when you're close, and a sensor card that stays visible while the camera is up.
-- **Forward camera inside the dash:** the panels stay on screen around it, it closes itself past 15 km/h, and the picture is smooth.
-- **Autopilot attention warning:** a blue LED bar that pulses out from the centre, with a soft breathing glow around the centre window. It clears as soon as the car does.
-- **CarPlay on your terms:** starts only when you tap CarPlay, and one tap ends it and rejoins your home Wi-Fi. A small icon shows Wi-Fi or CarPlay hotspot.
+- **Forward camera inside the dash:** now is the picture is actually smooth.
+- **Autopilot attention warning:** a blue LED bar that pulses out from the centre, with a soft breathing glow around the centre window.
+- **CarPlay on your terms:** starts only when you tap CarPlay, and one tap ends it and rejoins your home Wi-Fi.
 - **Light, dark or Auto theme:** Auto follows the screen brightness the car sets, so it goes dark with the car at night.
-- **Steering-wheel control** of the dock and settings, three text sizes, and the menu on either side for right- or left-hand drive.
+- **Steering-wheel control**
 
 ## What it fixes compared with the stock dash
 - **Battery %:** on some cars the stock "battery level" field is stuck (77 % all day here), and the stock dash shows another field as "km" when it isn't range at all. Binnacle decodes the real % from that second field, checked against a full 13 % to 100 % charge.
