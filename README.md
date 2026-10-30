@@ -8,6 +8,12 @@ The goal: a clean replacement Home/dashboard fixing some of the jank in the soft
 
 > **ABSOLUTE RULE — RECEIVE ONLY.** Nothing in this project ever sends anything to the car's CAN bus or the MCU. The dash app only *subscribes* to the stock CAN service and *receives* data. This is enforced in code (one class, two allowed binder calls: subscribe/unsubscribe) and by a build-time guard (`app/tools/check_readonly.sh`) that refuses to build if any write path is referenced. Never weaken or bypass it.
 
+![Binnacle in the light theme: speed and gear on the left, the 3D car on a road with parking-sensor arcs and a STOP sign in the centre, battery, sensors and app buttons on the right](docs/images/dash-light.png)
+
+![The same screen in the dark theme](docs/images/dash-dark.png)
+
+*Parked on the owner's car, light and dark themes. The red "LOGGER RECORDING" badge and eye show because the optional logger is installed and running.*
+
 ## Why "Binnacle"?
 On a ship, the binnacle is the stand in front of the helm that holds the compass, lit so the helmsman can read it at a glance.
 
