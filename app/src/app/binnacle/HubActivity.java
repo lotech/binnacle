@@ -55,8 +55,16 @@ public class HubActivity extends Activity {
         final String label;
         final Drawable icon;
         final Intent intent;
-        Entry(String label, Drawable icon, Intent intent) { this.label = label; this.icon = icon; this.intent = intent; }
+        final String pkg;
+        Entry(String label, Drawable icon, Intent intent, String pkg) { this.label = label; this.icon = icon; this.intent = intent; this.pkg = pkg; }
     }
+
+    /**
+     * Pinned first, in this order, then a divider and every other app A-Z (the owner, 31 Oct):
+     * Binnacle itself (back to the dash), Android settings, the drive logger, the stock dash.
+     */
+    private static final String[] PINNED = {"", "com.android.settings", "app.binnacle.logger", "com.lotech.tesladash", "com.xbs.launcher1"};
+    private int pinnedCount;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -214,7 +222,9 @@ public class HubActivity extends Activity {
         if (apps == null) apps = loadApps();
         GridLayout grid = new GridLayout(this);
         grid.setColumnCount(6);
-        for (Entry e : apps) {
+        for (int i = 0; i < apps.size(); i++) {
+            if (i == pinnedCount && pinnedCount > 0 && pinnedCount < apps.size()) grid.addView(divider(), dividerParams());
+            Entry e = apps.get(i);
             final Intent intent = e.intent;
             LinearLayout tile = new LinearLayout(this);
             tile.setOrientation(LinearLayout.VERTICAL);
@@ -250,24 +260,58 @@ public class HubActivity extends Activity {
 
     private List<Entry> loadApps() {
         PackageManager pm = getPackageManager();
-        List<Entry> list = new ArrayList<>();
-        try {
-            pm.getActivityInfo(Launch.STOCK_DASH, 0);
-            list.add(new Entry("Stock dash", getDrawable(R.drawable.ic_stock_dash),
-                    new Intent(Intent.ACTION_MAIN).setComponent(Launch.STOCK_DASH)));
-        } catch (PackageManager.NameNotFoundException ignored) {}
         List<Entry> found = new ArrayList<>();
+        boolean stockListed = false;
         for (ResolveInfo ri : pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)) {
-            if (getPackageName().equals(ri.activityInfo.packageName)) continue;
-            found.add(new Entry(String.valueOf(ri.loadLabel(pm)), ri.loadIcon(pm),
+            String pkg = ri.activityInfo.packageName;
+            boolean self = getPackageName().equals(pkg);
+            String label = self ? "Binnacle" : pkg.startsWith("app.binnacle.logger") || pkg.equals("com.lotech.tesladash") ? "Logger"
+                    : String.valueOf(ri.loadLabel(pm));
+            if (pkg.equals(Launch.STOCK_DASH.getPackageName())) stockListed = true;
+            found.add(new Entry(label, ri.loadIcon(pm),
                     new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-                            .setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name))));
+                            .setComponent(new ComponentName(pkg, ri.activityInfo.name)), self ? "" : pkg));
         }
+        if (!stockListed) {
+            try {
+                pm.getActivityInfo(Launch.STOCK_DASH, 0);
+                found.add(new Entry("Stock dash", getDrawable(R.drawable.ic_stock_dash),
+                        new Intent(Intent.ACTION_MAIN).setComponent(Launch.STOCK_DASH), Launch.STOCK_DASH.getPackageName()));
+            } catch (PackageManager.NameNotFoundException ignored) {}
+        } else {
+            for (int i = 0; i < found.size(); i++) {      // our own name and icon for it (its own is a generic one)
+                Entry e = found.get(i);
+                if (e.pkg.equals(Launch.STOCK_DASH.getPackageName()))
+                    found.set(i, new Entry("Stock dash", getDrawable(R.drawable.ic_stock_dash), e.intent, e.pkg));
+            }
+        }
+        List<Entry> list = new ArrayList<>();
+        for (String pin : PINNED) {
+            for (int i = 0; i < found.size(); i++) {
+                if (found.get(i).pkg.equals(pin)) { list.add(found.remove(i)); break; }
+            }
+        }
+        pinnedCount = list.size();
         Collections.sort(found, new Comparator<Entry>() {
             @Override public int compare(Entry a, Entry b) { return a.label.compareToIgnoreCase(b.label); }
         });
         list.addAll(found);
         return list;
+    }
+
+    /** A thin line across the whole grid between the pinned apps and the rest. */
+    private View divider() {
+        View v = new View(this);
+        v.setBackgroundColor(Style.LINE);
+        return v;
+    }
+
+    private GridLayout.LayoutParams dividerParams() {
+        GridLayout.LayoutParams lp = new GridLayout.LayoutParams(GridLayout.spec(GridLayout.UNDEFINED), GridLayout.spec(0, 6, 1f));
+        lp.width = 0;
+        lp.height = Math.max(1, dp(1));
+        lp.setMargins(dp(12), dp(6), dp(12), dp(6));
+        return lp;
     }
 
     /** Grey out a card whose setting has no effect right now (it stays readable). */
