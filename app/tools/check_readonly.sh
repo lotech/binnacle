@@ -8,8 +8,9 @@ fail=0
 bad() { echo "check_readonly: $*" >&2; fail=1; }
 
 # 1. No reference to any car-write API: the IMcuService send/tx methods, the MCU serial writer,
-#    the CAN content provider, the car-settings app, or content-resolver writes.
-FORBIDDEN='txMessengerPack|txGeneralProtocol|txPerformUartPack|txUpdateProtocol|setUartNormalTransmitEnable|McuSerial|McuManager|writeData|com\.mct\.serial|com\.xbs\.can\.provider|com\.xbs\.carsetup|ContentProviderClient|\.insert\(|\.update\(|\.delete\(|bulkInsert|applyBatch|openOutputStream|openFileDescriptor|/dev/tty|\.put(Int|Long|Float|String)\(\s*(c\.)?getContentResolver|Settings\.(System|Global|Secure)\.put|(System|Global|Secure)\.put(Int|Long|Float|String)|SystemProperties|WRITE_SETTINGS|WRITE_SECURE_SETTINGS'
+#    the CAN content provider, the car-settings app, or content-resolver writes. (A content-resolver
+#    delete always takes arguments; File.delete() with none, for the app's own files, is fine.)
+FORBIDDEN='txMessengerPack|txGeneralProtocol|txPerformUartPack|txUpdateProtocol|setUartNormalTransmitEnable|McuSerial|McuManager|writeData|com\.mct\.serial|com\.xbs\.can\.provider|com\.xbs\.carsetup|ContentProviderClient|\.insert\(|\.update\(|\.delete\([^)]|bulkInsert|applyBatch|openOutputStream|openFileDescriptor|/dev/tty|\.put(Int|Long|Float|String)\(\s*(c\.)?getContentResolver|Settings\.(System|Global|Secure)\.put|(System|Global|Secure)\.put(Int|Long|Float|String)|SystemProperties|WRITE_SETTINGS|WRITE_SECURE_SETTINGS'
 grep -rnE "$FORBIDDEN" $SRC && bad "forbidden car-write reference found (above)"
 
 # 1b. A content resolver may be used in StockScreens.java only, for exactly one read:
@@ -48,11 +49,24 @@ BT_AUTOCONNECT_OFF("settings put system xbs_isautoconnect false && echo BINNACLE
 [ "$(grep -c 'shell:' src/app/binnacle/LocalShell.java)" = 1 ] && grep -qF '("shell:" + cmd.shell + "\0")' src/app/binnacle/LocalShell.java || bad "LocalShell may only open shell:<Command.shell>"
 grep -rnE 'LocalShell\.run\(' src | grep -vE 'LocalShell\.run\(cmd\)' && bad "LocalShell.run must take a Command (above)"
 
-# 5. File writes: only CameraPane, only the camera decoder's two nodes (local hardware, not the car).
-hits=$(grep -rlE 'FileWriter|FileOutputStream|RandomAccessFile' src)
-[ -z "$hits" ] || [ "$hits" = "src/app/binnacle/CameraPane.java" ] || bad "file writes outside CameraPane: $hits"
+# 5. File writes: only CameraPane (the camera decoder's two nodes: local hardware, not the car) and
+#    CarPacks (car pictures, only inside the app's own files dir, only entries that stay inside it).
+for f in $(grep -rlE 'FileWriter|FileOutputStream|RandomAccessFile' src); do
+  case "$f" in src/app/binnacle/CameraPane.java|src/app/binnacle/CarPacks.java) ;; *) bad "file writes outside CameraPane/CarPacks: $f";; esac
+done
 grep -q 'DECODER_DIR = "/sys/ziqi/camera", INPUT = "2", SIGNAL = "AHD_1080P_30";' src/app/binnacle/CameraPane.java || bad "camera decoder write target changed"
 [ "$(grep -cE 'writeDecoder\("' src/app/binnacle/CameraPane.java)" = 2 ] || bad "CameraPane may write only channel and N_P_pre_format"
+[ "$(grep -c 'new FileOutputStream(' src/app/binnacle/CarPacks.java)" = 1 ] || bad "CarPacks must write files in one place only"
+grep -q 'if (!isInside(tmp, out)) throw' src/app/binnacle/CarPacks.java || bad "CarPacks must check every entry stays inside the pack folder"
+grep -q 'File root = c.getExternalFilesDir(null);' src/app/binnacle/CarPacks.java || bad "CarPacks must write only under the app's own files dir"
+
+# 6. Internet: only CarPacks, only GET from the project's own GitHub release, HTTPS.
+for f in $(grep -rlE 'HttpURLConnection|HttpsURLConnection|new URL\(|openConnection|URLConnection' src); do
+  [ "$f" = "src/app/binnacle/CarPacks.java" ] || bad "network access outside CarPacks: $f"
+done
+grep -qF 'RELEASE_BASE = "https://github.com/lotech/binnacle/releases/download/cars-v1/";' src/app/binnacle/CarPacks.java || bad "CarPacks download source changed"
+[ "$(grep -c 'new URL(' src/app/binnacle/CarPacks.java)" = 1 ] && grep -qF 'new URL(RELEASE_BASE + packName(hand, colour))' src/app/binnacle/CarPacks.java || bad "CarPacks may only fetch RELEASE_BASE + packName"
+grep -nE 'setRequestMethod|setDoOutput|getOutputStream' src/app/binnacle/CarPacks.java && bad "CarPacks may only download (GET), never send (above)"
 
 [ $fail -eq 0 ] && echo "check_readonly: OK (receive-only: IMcuService register/unregister only)"
 exit $fail

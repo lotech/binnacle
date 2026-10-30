@@ -22,6 +22,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -193,6 +194,7 @@ public class HubActivity extends Activity {
                             new String[]{"psi", "bar"}, new String[]{"psi", "bar"}),
                     choiceCard("Driving side", "Which side the steering wheel is on (car pictures)", "drive_side", "rhd",
                             new String[]{"rhd", "lhd"}, new String[]{"Right", "Left"}),
+                    carPicturesCard(),
                     choiceCard("Menu side", null, "menu_side", "right",
                             new String[]{"left", "right"}, new String[]{"Left", "Right"}),
                     stepperCard("Range at 100%", "For the km estimate under the battery %", "full_range_km", 410, 150, 700, 5, "km"),                    infoCard("CarPlay layout", carplayLayoutText()))); break;
@@ -426,6 +428,74 @@ public class HubActivity extends Activity {
      * Bluetooth switch; local to the unit, never sent to the car). Read and written through
      * LocalShell, since a normal app may not write Settings.System.
      */
+    /**
+     * Car pictures for the car's colour (from the car) and the driving side: built in, downloaded,
+     * or a Download button that fetches the pack from the project's GitHub release (CarPacks).
+     */
+    private View carPicturesCard() {
+        DashApp app = DashApp.get(this);
+        int c = app.car.carColour;
+        final String colour = c >= 0 && c < CarPacks.COLOURS.length ? CarPacks.COLOURS[c] : "silver";
+        final String hand = app.leftHandDrive() ? "lhd" : "rhd";
+        String what = Character.toUpperCase(colour.charAt(0)) + colour.substring(1)
+                + (hand.equals("lhd") ? ", left-hand drive" : ", right-hand drive");
+        final LinearLayout card = card("Car pictures", what);
+        final TextView b = chip("…");
+        final Runnable refresh = new Runnable() {
+            @Override public void run() {
+                boolean bundled = CarPacks.bundled(HubActivity.this, hand, colour);
+                boolean got = CarPacks.downloaded(HubActivity.this, hand, colour);
+                b.setEnabled(!bundled || got);
+                b.setSelected(bundled || got);
+                b.setText(got ? "Remove" : bundled ? "Built in" : "Download");
+            }
+        };
+        refresh.run();
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                if (CarPacks.downloaded(HubActivity.this, hand, colour)) {
+                    CarPacks.remove(HubActivity.this, hand, colour);
+                    DashApp.get(HubActivity.this).reloadArt();
+                    refresh.run();
+                    return;
+                }
+                b.setEnabled(false);
+                b.setText("Downloading…");
+                new Thread(new Runnable() {
+                    @Override public void run() {
+                        String err = null;
+                        try {
+                            CarPacks.download(HubActivity.this, hand, colour, new CarPacks.Progress() {
+                                @Override public void onProgress(final long bytes) {
+                                    b.post(new Runnable() {
+                                        @Override public void run() { b.setText(Math.max(1, bytes >> 20) + " MB…"); }
+                                    });
+                                }
+                            });
+                        } catch (Exception e) {
+                            err = e.getMessage();
+                        }
+                        final String problem = err;
+                        b.post(new Runnable() {
+                            @Override public void run() {
+                                if (problem != null) {
+                                    b.setEnabled(true);
+                                    b.setText("Download");
+                                    Toast.makeText(HubActivity.this, "Couldn't download: " + problem, Toast.LENGTH_LONG).show();
+                                    return;
+                                }
+                                DashApp.get(HubActivity.this).reloadArt();
+                                refresh.run();
+                            }
+                        });
+                    }
+                }, "car-pack").start();
+            }
+        });
+        card.addView(b, new LinearLayout.LayoutParams(dp(150), dp(BUTTON_DP)));
+        return card;
+    }
+
     private View btAutoConnectCard() {
         LinearLayout card = card("Bluetooth auto-connect", "Reconnect the phone when the car wakes");
         final TextView b = chip("…");
