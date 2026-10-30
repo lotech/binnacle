@@ -34,6 +34,11 @@ On a ship, the binnacle is the stand in front of the helm that holds the compass
 - **Warnings that clear on time:** the attention warning goes away when the car clears it, not seconds later.
 - **Theme that doesn't flip-flop:** Auto waits for the car's light level to settle before switching.
 
+## Planned/Hoped for Features.
+- CarPlay/Android Auto in the centre of the screen.
+- Installed Navigation apps in the centre of the screen with access to Cached data.
+- Improved design with more options for centre screen.
+
 ## Status
 In daily use on the owner's car since 29 Oct 2026, as the unit's Home app (it replaces the stock dash; the stock launcher stays installed as the fallback).
 - ✅ Reverse-engineered the stock CAN data interface and built a **field map** (`docs/FIELD_MAP.md`).
