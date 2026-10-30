@@ -38,6 +38,26 @@ On a ship, the binnacle is the stand in front of the helm that holds the compass
 - **Warnings that clear on time:** the attention warning goes away when the car clears it, not seconds later.
 - **Theme that doesn't flip-flop:** Auto waits for the car's light level to settle before switching.
 
+## The hardware (what the listings don't tell you)
+Sold as an "Android 12" 10.25" cluster for the Model 3 and Model Y under several brands. Inside, it's a ZIQI "A007" board. What we found on ours:
+
+| | |
+|---|---|
+| **Android** | **Android 10** (API 29). The build and About screen say 12, but the system is 10 underneath, so apps that need Android 11 or 12 won't run. |
+| **SoC** | Unisoc UMS512, not MediaTek. |
+| **Firmware** | `A007-userdebug` build (Feb 2023), with a fingerprint borrowed from a Vastking tablet. It's a debug build: SELinux is permissive, the bootloader is unlocked and `su` gives root. ZIQI's update server has nothing published for it, so the promised OTA updates don't exist. |
+| **Storage** | 64 GB eMMC (about 55 GB for apps and data). |
+| **Screen** | 1920 × 720 at 320 dpi. The panel runs at **56 Hz**, which makes 30 fps video judder unless it's paced (Binnacle does this for the camera). |
+| **Car data** | Two MCUs: one decodes the Tesla CAN bus and sends it over a serial port to the stock CAN app (`com.xbs.canapp`), which any app can subscribe to. Brake lights, true range and steering angle aren't in that feed, and on some cars the battery level is stuck (see above). |
+| **Wi-Fi** | One radio. Wireless CarPlay turns it into a hotspot, so the unit drops off your home Wi-Fi (and ADB) while CarPlay is connected. |
+| **Bluetooth** | A separate Goodocom module handles calls and audio. Android's own Bluetooth is off, so there's no Bluetooth LE and apps that need it (such as S3XY Commander) can't connect. |
+| **CarPlay / Android Auto** | ZLink, preinstalled. The unit rolls ZLink back to its preinstalled version at every boot, so in-app updates don't stick. |
+| **Camera** | A TP9950 decoder. Only the TVI 1080p 30 fps input format gives a clean picture with the supplied camera. |
+| **GPS** | Built in. Its daemon crashes often and, as shipped, writes a large crash dump to storage each time. |
+| **USB-C** | Host only: you can't use it for ADB. ADB works over Wi-Fi (see `docs/ADB-GUIDE.md`), and once on, it accepts connections from anything on your network without a key. |
+
+Changes we made to the unit itself (outside the app), each with its undo: `docs/UNIT-CHANGES.md`. No stock apps were removed.
+
 ## Planned/Hoped for Features.
 - CarPlay/Android Auto in the centre of the screen.
 - Installed Navigation apps in the centre of the screen with access to Cached data.
@@ -58,7 +78,7 @@ In daily use on the owner's car since 29 Oct 2026, as the unit's Home app (it re
 | `app/` | The replacement read-only dash app (`app.binnacle`) |
 | `capture/` | Optional developer tool: Binnacle logger, a separate read-only app that records the car data feed (no location) to its private storage; used to derive the field map |
 | `mockups/` | HTML mockups of the dash layout — **own artwork only**, no vendor assets |
-| `docs/` | `FIELD_MAP.md` (decoded CAN fields) and the ADB access guide |
+| `docs/` | `FIELD_MAP.md` (decoded CAN fields), the ADB access guide, and `UNIT-CHANGES.md` (changes made to the unit outside the app) |
 | `app/tests/` | Plain-Java tests (tyre pressure, battery decoding), run by `app/build.sh` |
 | `app/assets/cars/` | The dash's car renders, made from a CC BY 4.0 model (see Credits) |
 
