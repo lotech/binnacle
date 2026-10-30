@@ -18,8 +18,12 @@ public class StateReceiver extends BroadcastReceiver {
         if (ACTION_QUERY.equals(intent.getAction())) announce(c, CaptureService.running);
     }
 
-    /** Tells Binnacle whether recording is on (on start, on stop, and when asked). */
+    /**
+     * Tells Binnacle whether recording is on (on start, on stop, and when asked). No fixed package:
+     * the dash may be installed as app.binnacle or under another id (e.g. com.xbs.launcher on the
+     * owner's unit); the permission limits receivers to same-key apps.
+     */
     static void announce(Context c, boolean running) {
-        c.sendBroadcast(new Intent(ACTION_STATE).setPackage("app.binnacle").putExtra("running", running), PERMISSION);
+        c.sendBroadcast(new Intent(ACTION_STATE).putExtra("running", running), PERMISSION);
     }
 }
