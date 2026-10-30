@@ -88,6 +88,14 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         startCompass();
     }
 
+    /** onCarChanged code: a car-picture pack finished downloading (or failed); screens showing it refresh. */
+    public static final int PACKS_CHANGED = -4;
+
+    /** Tell every screen something changed outside the car feed (e.g. PACKS_CHANGED). */
+    public void notifyChanged(int code) {
+        for (Listener l : listeners) l.onCarChanged(code);
+    }
+
     /** onCarChanged code for a new GPS heading. */
     public static final int HEADING_CHANGED = -3;
     private final Compass compass = new Compass(this, new Compass.Sink() {

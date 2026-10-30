@@ -152,6 +152,7 @@ public class HubActivity extends Activity {
     private final DashApp.Listener themeListener = new DashApp.Listener() {
         @Override public void onCarChanged(int code) {
             if (code == DashApp.THEME_CHANGED && lightBuilt != Style.light) recreate();
+            if (code == DashApp.PACKS_CHANGED && tab == 1) showTab(1);   // whichever Car pictures card is showing now
         }
     };
 
@@ -495,7 +496,7 @@ public class HubActivity extends Activity {
                             @Override public void run() {
                                 if (problem == null) app.reloadArt();
                                 else Toast.makeText(app, "Couldn't download: " + problem, Toast.LENGTH_LONG).show();
-                                if (b.isAttachedToWindow()) refresh.run();
+                                app.notifyChanged(DashApp.PACKS_CHANGED);   // refreshes the card on screen, even a newer one
                             }
                         });
                     }
