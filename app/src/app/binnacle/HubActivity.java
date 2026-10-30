@@ -155,13 +155,25 @@ public class HubActivity extends Activity {
         }
     };
 
+    private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
+
+    /** Driving side changed: rebuild the Display tab so Car pictures shows (and fetches) that side. */
+    private final SharedPreferences.OnSharedPreferenceChangeListener sideListener =
+            new SharedPreferences.OnSharedPreferenceChangeListener() {
+                @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
+                    if ("drive_side".equals(key) && tab == 1) showTab(1);
+                }
+            };
+
     @Override protected void onStart() {
         super.onStart();
         DashApp.get(this).addListener(themeListener);
+        prefs.registerOnSharedPreferenceChangeListener(sideListener);
     }
 
     @Override protected void onStop() {
         DashApp.get(this).removeListener(themeListener);
+        prefs.unregisterOnSharedPreferenceChangeListener(sideListener);
         super.onStop();
     }
 
@@ -433,10 +445,10 @@ public class HubActivity extends Activity {
      * or a Download button that fetches the pack from the project's GitHub release (CarPacks).
      */
     private View carPicturesCard() {
-        DashApp app = DashApp.get(this);
+        final DashApp app = DashApp.get(this);
         int c = app.car.carColour;
         final String colour = c >= 0 && c < CarPacks.COLOURS.length ? CarPacks.COLOURS[c] : "silver";
-        final String hand = app.leftHandDrive() ? "lhd" : "rhd";
+        final String hand = app.leftHandDrive() ? "lhd" : "rhd";   // the tab rebuilds when the side changes
         String what = Character.toUpperCase(colour.charAt(0)) + colour.substring(1)
                 + (hand.equals("lhd") ? ", left-hand drive" : ", right-hand drive");
         final LinearLayout card = card("Car pictures", what);
@@ -445,9 +457,10 @@ public class HubActivity extends Activity {
             @Override public void run() {
                 boolean bundled = CarPacks.bundled(HubActivity.this, hand, colour);
                 boolean got = CarPacks.downloaded(HubActivity.this, hand, colour);
-                b.setEnabled(!bundled || got);
+                boolean busy = CarPacks.downloading(hand, colour);
+                b.setEnabled(!busy && (!bundled || got));
                 b.setSelected(bundled || got);
-                b.setText(got ? "Remove" : bundled ? "Built in" : "Download");
+                b.setText(busy ? "Downloading…" : got ? "Remove" : bundled ? "Built in" : "Download");
             }
         };
         refresh.run();
@@ -467,7 +480,7 @@ public class HubActivity extends Activity {
                         try {
                             CarPacks.download(HubActivity.this, hand, colour, new CarPacks.Progress() {
                                 @Override public void onProgress(final long bytes) {
-                                    b.post(new Runnable() {
+                                    main.post(new Runnable() {
                                         @Override public void run() { b.setText(Math.max(1, bytes >> 20) + " MB…"); }
                                     });
                                 }
@@ -476,16 +489,13 @@ public class HubActivity extends Activity {
                             err = e.getMessage();
                         }
                         final String problem = err;
-                        b.post(new Runnable() {
+                        // through the main looper, not the button: the card may be gone by now
+                        // (tab changed, settings closed), but the dash must still pick the pack up
+                        main.post(new Runnable() {
                             @Override public void run() {
-                                if (problem != null) {
-                                    b.setEnabled(true);
-                                    b.setText("Download");
-                                    Toast.makeText(HubActivity.this, "Couldn't download: " + problem, Toast.LENGTH_LONG).show();
-                                    return;
-                                }
-                                DashApp.get(HubActivity.this).reloadArt();
-                                refresh.run();
+                                if (problem == null) app.reloadArt();
+                                else Toast.makeText(app, "Couldn't download: " + problem, Toast.LENGTH_LONG).show();
+                                if (b.isAttachedToWindow()) refresh.run();
                             }
                         });
                     }

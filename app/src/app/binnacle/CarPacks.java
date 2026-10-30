@@ -37,6 +37,15 @@ final class CarPacks {
 
     private CarPacks() {}
 
+    /** Packs being downloaded right now ("hand/colour"): one download per pack at a time. */
+    private static final java.util.Set<String> inFlight = new java.util.HashSet<>();
+
+    static synchronized boolean downloading(String hand, String colour) { return inFlight.contains(hand + "/" + colour); }
+
+    private static synchronized boolean begin(String key) { return inFlight.add(key); }
+
+    private static synchronized void end(String key) { inFlight.remove(key); }
+
     static String packName(String hand, String colour) { return "binnacle-cars-" + hand + "-" + colour + ".zip"; }
 
     static File packDir(Context c, String hand, String colour) {
@@ -63,6 +72,16 @@ final class CarPacks {
     /** Blocking: downloads and unpacks one pack. Call off the main thread. Throws with a short reason. */
     static void download(Context c, String hand, String colour, Progress progress) throws IOException {
         if (!contains(HANDS, hand) || !contains(COLOURS, colour)) throw new IOException("unknown pack");
+        String key = hand + "/" + colour;
+        if (!begin(key)) throw new IOException("already downloading");
+        try {
+            fetch(c, hand, colour, progress);
+        } finally {
+            end(key);
+        }
+    }
+
+    private static void fetch(Context c, String hand, String colour, Progress progress) throws IOException {
         File dest = packDir(c, hand, colour);
         if (dest == null) throw new IOException("no storage");
         File tmp = new File(dest.getParentFile(), ".download-" + colour);
@@ -116,6 +135,7 @@ final class CarPacks {
 
     /** Removes a downloaded pack (the bundled one, if any, is used again). */
     static void remove(Context c, String hand, String colour) {
+        if (downloading(hand, colour)) return;
         File d = packDir(c, hand, colour);
         if (d != null) deleteTree(d);
     }
