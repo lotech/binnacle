@@ -64,7 +64,8 @@ public class MainActivity extends Activity {
             @Override public void onClick(View v) {
                 File[] files = CaptureService.logDir(MainActivity.this).listFiles();
                 int n = 0;
-                if (files != null) for (File f : files) if (!CaptureService.running || !f.getName().equals(CaptureService.LOG_NAME)) { if (f.delete()) n++; }
+                String current = CaptureService.todayName();
+                if (files != null) for (File f : files) if (!CaptureService.running || !f.getName().equals(current)) { if (f.delete()) n++; }
                 Toast.makeText(MainActivity.this, n + " log file(s) deleted" + (CaptureService.running ? " (stop to delete the current one)" : ""), Toast.LENGTH_SHORT).show();
                 refresh();
             }
@@ -77,6 +78,7 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() {
         super.onResume();
+        CaptureService.removeLegacy(this);
         CaptureService.prune(this);
         refresh();
     }

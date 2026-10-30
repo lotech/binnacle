@@ -31,9 +31,10 @@ import java.text.SimpleDateFormat;
  * dash. READ-ONLY: it only ever calls register (txn 1) and unregister (txn 2) of IMcuService;
  * never any tx/write.
  *
- * Privacy: it records no location. Logs live in the app's private storage (not /sdcard), roll over
- * at ROLL_BYTES keeping one older file, and anything older than KEEP_DAYS is deleted at start.
- * Uninstalling the app deletes them all.
+ * Privacy: it records no location. Logs live in the app's private storage (not /sdcard), one file
+ * per day (so a file never holds more than a day; a busy day rolls at ROLL_BYTES keeping one older
+ * part), and day files older than KEEP_DAYS are deleted at start and at every change of day.
+ * Logs from older versions (on shared storage, with GPS) are deleted. Uninstalling deletes them all.
  */
 public class CaptureService extends Service {
 
@@ -41,7 +42,7 @@ public class CaptureService extends Service {
     static final String ACTION_STOP = "app.binnacle.logger.STOP";
     static final long ROLL_BYTES = 10L * 1024 * 1024;
     static final int KEEP_DAYS = 7;
-    static final String LOG_NAME = "binnacle_log.txt", OLD_NAME = "binnacle_log.1.txt";
+    private static final SimpleDateFormat DAY = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
 
     private static final String TAG = "BinnacleLogger";
     private static final String DESCRIPTOR = "com.mcu.iinterface.aidl.IMcuService";
@@ -62,6 +63,19 @@ public class CaptureService extends Service {
     private boolean registered;
     private FileWriter w;
     private File logFile;
+    private String logDay;
+
+    /** Today's log file name, e.g. binnacle_2026-10-31.txt. */
+    static String todayName() { synchronized (DAY) { return "binnacle_" + DAY.format(new Date()) + ".txt"; } }
+
+    /** Deletes the logs older versions kept: shared storage (with GPS) and the old private fallback. */
+    static void removeLegacy(Context c) {
+        File ext = c.getExternalFilesDir(null);
+        if (ext != null) //noinspection ResultOfMethodCallIgnored
+            new File(ext, "binnacle_log.txt").delete();
+        //noinspection ResultOfMethodCallIgnored
+        new File(c.getFilesDir(), "binnacle_log.txt").delete();
+    }
 
     private final ServiceConnection conn = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName n, IBinder s) { binder = s; log("service connected: " + n); register(); }
@@ -88,6 +102,7 @@ public class CaptureService extends Service {
             @Override public void handleMessage(Message msg) { record(msg); }
         };
         messenger = new Messenger(handler);
+        removeLegacy(this);
         prune(this);
         openLog();
         startForegroundNotif();
@@ -128,18 +143,29 @@ public class CaptureService extends Service {
         try {
             File dir = logDir(this);
             if (!dir.isDirectory() && !dir.mkdirs()) throw new IllegalStateException("can't create " + dir);
-            logFile = new File(dir, LOG_NAME);
+            logDay = todayName();
+            logFile = new File(dir, logDay);
             w = new FileWriter(logFile, true);
             w.write("\n==== capture-service session " + new Date() + " ====\n"); w.flush();
         } catch (Throwable t) { w = null; Log.w(TAG, "log open err: " + t); }
     }
 
-    /** Past ROLL_BYTES: the current file becomes the one older file (replacing it) and a new one starts. */
+    /**
+     * A new day: close yesterday's file, delete files past KEEP_DAYS, start today's. Past ROLL_BYTES
+     * within a day: the current file becomes the day's one older part (replacing it).
+     */
     private void rollIfNeeded() {
-        if (logFile == null || logFile.length() < ROLL_BYTES) return;
+        if (logFile == null) return;
+        if (!todayName().equals(logDay)) {
+            try { w.close(); } catch (Throwable ignored) {}
+            prune(this);
+            openLog();
+            return;
+        }
+        if (logFile.length() < ROLL_BYTES) return;
         try {
             w.close();
-            File old = new File(logFile.getParentFile(), OLD_NAME);
+            File old = new File(logFile.getParentFile(), logDay.replace(".txt", ".1.txt"));
             //noinspection ResultOfMethodCallIgnored
             old.delete();
             //noinspection ResultOfMethodCallIgnored

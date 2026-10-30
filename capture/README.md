@@ -9,7 +9,8 @@ A small separate Android app that records the car data the head unit publishes, 
 
 ## Where the logs go, and for how long
 - In the app's **private storage** (`/data/data/app.binnacle.logger/files/logs/`), not on `/sdcard`, so other apps can't read them.
-- They roll over at 10 MB, keeping one older file, and anything older than **7 days** is deleted.
+- One file per day (a busy day rolls at 10 MB, keeping one older part). Day files older than **7 days** are deleted when the logger starts and whenever the day changes.
+- Logs left by older versions of the logger (on shared storage, including GPS) are deleted automatically.
 - The logger's screen shows what's stored, with **Delete logs now** and **Export logs to Downloads** (copies them out only when you ask).
 - **Uninstalling the app deletes every log.**
 

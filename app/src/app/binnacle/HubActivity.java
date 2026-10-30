@@ -197,6 +197,9 @@ public class HubActivity extends Activity {
     }
 
     private void showTab(int i) {
+        // rebuilding the same tab (a download finished, the side changed): keep the scroll position
+        final int keepScroll = i == tab && content.getChildCount() > 0 && content.getChildAt(0) instanceof ScrollView
+                ? content.getChildAt(0).getScrollY() : 0;
         tab = i;
         for (int t = 0; t < tabViews.size(); t++) {
             TextView v = tabViews.get(t);
@@ -234,6 +237,10 @@ public class HubActivity extends Activity {
                     infoCard("About", "Binnacle, a read-only dash for this unit.\n"
                             + "Car model: \"Tesla 2018 Model 3\" by Ameer Studio, CC BY 4.0, modified "
                             + "(recoloured, mirrored for right-hand drive, posed, rendered)."))); break;
+        }
+        if (keepScroll > 0 && content.getChildCount() > 0) {
+            final View sv = content.getChildAt(0);
+            sv.post(new Runnable() { @Override public void run() { sv.scrollTo(0, keepScroll); } });
         }
     }
 
