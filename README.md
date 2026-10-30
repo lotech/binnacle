@@ -1,4 +1,8 @@
-# Binnacle
+<p align="center"><img src="docs/images/icon.svg" width="128" height="128" alt="Binnacle icon: a compass card with N and a red lubber line"></p>
+
+<h1 align="center">Binnacle</h1>
+
+<p align="center">A read-only replacement dash for the 10.25" Android instrument cluster in the Model 3/Y.</p>
 
 > **ABSOLUTE RULE — RECEIVE ONLY.** Nothing in this project ever sends anything to the car's CAN bus or the MCU. The dash app only *subscribes* to the stock CAN service and *receives* data. This is enforced in code (one class, two allowed binder calls: subscribe/unsubscribe) and by a build-time guard (`app/tools/check_readonly.sh`) that refuses to build if any write path is referenced. Never weaken or bypass it.
 
