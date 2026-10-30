@@ -74,17 +74,25 @@ final class CarPacks {
         if (!contains(HANDS, hand) || !contains(COLOURS, colour)) throw new IOException("unknown pack");
         String key = hand + "/" + colour;
         if (!begin(key)) throw new IOException("already downloading");
+        boolean ok = false;
         try {
             fetch(c, hand, colour, progress);
+            ok = true;
         } finally {
+            if (!ok) deleteTree(tmpDir(c, hand, colour));   // never leave a half-unpacked pack behind
             end(key);
         }
+    }
+
+    private static File tmpDir(Context c, String hand, String colour) {
+        File dest = packDir(c, hand, colour);
+        return dest == null ? null : new File(dest.getParentFile(), ".download-" + colour);
     }
 
     private static void fetch(Context c, String hand, String colour, Progress progress) throws IOException {
         File dest = packDir(c, hand, colour);
         if (dest == null) throw new IOException("no storage");
-        File tmp = new File(dest.getParentFile(), ".download-" + colour);
+        File tmp = tmpDir(c, hand, colour);
         deleteTree(tmp);
         if (!tmp.mkdirs()) throw new IOException("can't create folder");
 
