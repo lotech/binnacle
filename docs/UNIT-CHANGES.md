@@ -16,7 +16,6 @@ Commands assume `adb connect <unit-ip>:5555` first. `su 0` gives root on this un
 | GPS crash dumps off | The GPS daemon crashes often and each crash wrote a core dump of up to ~470 MB to `/data/corefile` (about 180 of them here). Turning them off and clearing the folder freed the space; GPS keeps working | `adb shell su 0 setprop persist.vendor.sys.core.enabled 0`, then `adb shell "su 0 sh -c 'cd /data/corefile && rm -rf ./*'"` | `adb shell su 0 setprop persist.vendor.sys.core.enabled 1` (the deleted dumps are gone for good) |
 | CarPlay full width | The stock split layout draws CarPlay at the wrong width with a touch offset | Stock dash: Settings → Screen display mode → Full, then reboot (or `adb shell settings put system xbs_carmsgdisppost 2` and reboot) | Set it back to Right (`... xbs_carmsgdisppost 0`) and reboot |
 | CarPlay only when asked | Stops CarPlay grabbing the phone and the unit's Wi-Fi by itself | In ZLink: Background Connection → off. Bluetooth auto-connect can stay on (Binnacle: Display → Bluetooth auto-connect) | Turn Background Connection back on |
-| VNC server doesn't start at boot | Only if you installed droidVNC-NG for the ADB guide: it's not left listening on the network | `adb shell su 0 pm disable net.christianbeier.droidvnc_ng/.autostart.OnBootReceiver` | `adb shell su 0 pm enable net.christianbeier.droidvnc_ng/.autostart.OnBootReceiver` |
 
 Earlier, before Binnacle existed, the unit also had a tiny shortcut app that opened the hidden Android Settings. Binnacle's app list now does that, so it isn't needed.
 
