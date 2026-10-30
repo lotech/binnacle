@@ -10,14 +10,14 @@ import java.io.InputStream;
 
 /**
  * Car renders. The app bundles its own, rendered from a CC BY 4.0 model (by
- * Ameer Studio, see assets/cars/CREDITS.txt), in assets/cars/<hand>/teshila_car_<colour>/ (hand =
+ * Ameer Studio, see assets/cars/CREDITS.txt), in assets/cars/<hand>/<colour>/ (hand =
  * rhd or lhd: which side the steering wheel and driver's door are on; y-rhd / y-lhd for a Model Y,
  * downloaded only) with the same file names and
  * layout as the stock ZIQI renders (the stock dash's own renders are never used). Door layers are
  * named by their real side in both, so the door logic is the same either way.
  * Where to look, first match wins:
  * <ol>
- *   <li>a pack in this app's external files dir, files/<hand>/teshila_car_<colour>/ (another colour,
+ *   <li>a pack in this app's external files dir, files/<hand>/<colour>/ (another colour,
  *       or new renders without a build);</li>
  *   <li>the bundled pack for the car's colour and hand;</li>
  *   <li>any bundled colour in that hand (silver first);</li>
@@ -34,11 +34,11 @@ final class CarArt {
 
     /** Where a colour's renders come from: a folder on the unit, or the bundled assets. */
     abstract static class Source {
-        /** The colour folder's name, e.g. teshila_car_white. */
+        /** The colour folder's name, e.g. white. */
         final String name;
         Source(String name) { this.name = name; }
 
-        /** The image at rel (e.g. "car/teshila_car_bg(3).png"), or null if missing or undecodable. */
+        /** The image at rel (e.g. "turn/3.png"), or null if missing or undecodable. */
         abstract Bitmap decode(String rel);
     }
 
@@ -68,8 +68,8 @@ final class CarArt {
         if (s == null) s = find(c, carColour, other);
         if (s == null) return NONE;
         return new CarArt(s,
-                s.decode("car/teshila_car_bg(0).png"),
-                s.decode("car_bg/teshila_middlecar_bg.png"),
+                s.decode("turn/0.png"),
+                s.decode("body/middle.png"),
                 s.decode("tpmscar/tpmscar.png"));
     }
 
@@ -84,12 +84,12 @@ final class CarArt {
 
     private static Source folder(File root, String hand, String colour) {
         if (root == null) return null;
-        File d = new File(new File(root, hand), "teshila_car_" + colour);
+        File d = new File(new File(root, hand), colour);
         return d.isDirectory() ? new FolderSource(d) : null;
     }
 
     private static Source asset(AssetManager am, String hand, String colour) {
-        String dir = ASSET_ROOT + "/" + hand + "/teshila_car_" + colour;
+        String dir = ASSET_ROOT + "/" + hand + "/" + colour;
         try {
             String[] list = am.list(dir);
             return list != null && list.length > 0 ? new AssetSource(am, dir) : null;

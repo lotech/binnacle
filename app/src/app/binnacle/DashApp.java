@@ -87,6 +87,9 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         startFeed();
         startCompass();
         watchLogger();
+        new Thread(new Runnable() {
+            @Override public void run() { CarPacks.removeLegacy(DashApp.this); }
+        }, "car-pack-cleanup").start();
     }
 
     // ---- the optional drive logger must never run unnoticed: the dash always shows a badge ----

@@ -18,12 +18,12 @@ import java.util.concurrent.ThreadFactory;
 /**
  * Parked car with animated doors, using the stock ZIQI renders the unit already has (same logic as
  * the stock launcher's CarDoor3DLayout, re-implemented):
- * - car/teshila_car_bg(0..24) is a 25-frame turn: 0 = left side, 12 = from behind, 24 = right side.
+ * - turn/0..24 is a 25-frame turn: 0 = left side, 12 = from behind, 24 = right side.
  * - Doors open on the left only -> turn to 0; right only -> 24; both sides -> 12; none -> 0.
  * - Each door is a 7-frame opening animation drawn over the car at a fixed offset in the 800x434
  *   frame: door_xxS sets for the side views, door_xxM ("face") for the view from behind.
  * - The turn frames have every door closed, so while a door is open the car is drawn like the
- *   stock launcher does: the door-less body car_bg/teshila_{left,middle,right}car_bg plus each
+ *   stock launcher does: the door-less body body/{left,middle,right} plus each
  *   door of that view at its own frame (0 = closed). Drawing open doors over a turn frame showed
  *   the closed door underneath (in-car, 29 Oct).
  * Frames are decoded lazily on a background thread the first time a door opens and kept in a
@@ -34,10 +34,7 @@ final class DoorScene {
 
     /** doorval bits (stock launcher order): RF, LF, RB, LB. 0x80 = driver's door (RHD) verified in the car. */
     static final int[] DOOR_BITS = {0x80, 0x40, 0x20, 0x10};
-    private static final String[] SIDE_DIRS = {"door_RFS", "door_LFS", "door_RBS", "door_LBS"};
-    private static final String[] FACE_DIRS = {"door_RFM", "door_LFM", "door_RBM", "door_LBM"};
-    private static final String[] SIDE_NAMES = {"teshila_right_front", "teshila_left_front", "teshila_right_back", "teshila_left_back"};
-    private static final String[] FACE_NAMES = {"teshila_face_right_front", "teshila_face_left_front", "teshila_face_right_back", "teshila_face_left_back"};
+    private static final String[] DOOR_NAMES = {"right_front", "left_front", "right_back", "left_back"};
     /** Door layer offsets inside the 800x434 car frame (stock style0_zoom_door_layout). */
     private static final float[][] DOOR_XY = {{291, 28}, {43, 28}, {138, 69}, {138, 67}};
     static final float FRAME_W = 800, FRAME_H = 434;
@@ -277,14 +274,14 @@ final class DoorScene {
         return v < goal ? Math.min(goal, v + steps) : Math.max(goal, v - steps);
     }
 
-    private String turnPath(int i) { return "car/teshila_car_bg(" + i + ").png"; }
+    private String turnPath(int i) { return "turn/" + i + ".png"; }
 
     private static String bodyPath(int view) {
-        return "car_bg/teshila_" + (view == VIEW_LEFT ? "left" : view == VIEW_RIGHT ? "right" : "middle") + "car_bg.png";
+        return "body/" + (view == VIEW_LEFT ? "left" : view == VIEW_RIGHT ? "right" : "middle") + ".png";
     }
 
     private String doorPath(int d, boolean behind, int f) {
-        return (behind ? FACE_DIRS[d] + "/" + FACE_NAMES[d] : SIDE_DIRS[d] + "/" + SIDE_NAMES[d]) + "(" + f + ").png";
+        return "doors/" + (behind ? "face_" : "side_") + DOOR_NAMES[d] + "/" + f + ".png";
     }
 
     /**
