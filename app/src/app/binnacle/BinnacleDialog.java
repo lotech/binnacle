@@ -57,7 +57,7 @@ final class BinnacleDialog {
         m.setPadding(0, 0, 0, dp(a, 18));
         box.addView(m);
 
-        LinearLayout row = new LinearLayout(a);
+        final LinearLayout row = new LinearLayout(a);
         row.setOrientation(LinearLayout.HORIZONTAL);
         for (int i = 0; i < labels.length; i++) {
             final int index = i;
@@ -79,6 +79,20 @@ final class BinnacleDialog {
         }
         box.addView(row, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        // the steering wheel scrolls as DPAD_UP/DOWN: walk the buttons in order (they sit side by side,
+        // so Android's own focus search wouldn't move between them); OK presses the focused one
+        d.setOnKeyListener(new android.content.DialogInterface.OnKeyListener() {
+            @Override public boolean onKey(android.content.DialogInterface di, int code, android.view.KeyEvent e) {
+                int step = code == android.view.KeyEvent.KEYCODE_DPAD_DOWN || code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT ? 1
+                        : code == android.view.KeyEvent.KEYCODE_DPAD_UP || code == android.view.KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 0;
+                if (step == 0) return false;
+                if (e.getAction() != android.view.KeyEvent.ACTION_DOWN) return true;
+                int n = row.getChildCount(), at = 0;
+                for (int k = 0; k < n; k++) if (row.getChildAt(k).isFocused()) at = k;
+                row.getChildAt(Math.max(0, Math.min(n - 1, at + step))).requestFocus();
+                return true;
+            }
+        });
         d.setContentView(box);
         Window w = d.getWindow();
         if (w != null) {
