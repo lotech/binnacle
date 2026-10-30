@@ -10,6 +10,31 @@ A **read-only** aftermarket instrument-cluster app and tooling for the Carview /
 
 The goal: a clean replacement Home/dashboard that shows the real car data (speed, battery %, gear, odometer, TPMS, lights, parking sensors, doors) and hands off to CarPlay / Android Auto / the reverse camera — **without ever writing to the car**, and fully reversible.
 
+## Why "Binnacle"?
+On a ship, the binnacle is the stand in front of the helm that holds the compass, lit so the helmsman can read it at a glance. These clusters sit in the same spot, in front of the driver, holding the instruments. The icon is a compass card with a red lubber line, the mark a helmsman steers by.
+
+## Features
+- **Live car data, never written to:** speed, gear (R P N D), speed-limit sign, indicators and lights, power and regen bar, tyre pressures (psi or bar), parking sensors, doors, boot and frunk, outside temperature, odometer.
+- **Your car, in 3D:** a right-hand-drive Model 3 that turns to show whichever door is open, opens it, and highlights the boot and frunk. In Drive it sits on a moving road with headlight glow, and on Autopilot the lane turns blue (or a rainbow road, if you like).
+- **Real battery %:** decoded from a field the stock software mislabels (see below), with a range estimate, a charging animation, and a quiet "Estimated" label until the car reports in after waking.
+- **Efficiency:** Wh/km over the last 5 km, a 15-minute power and regen graph, and this drive's totals.
+- **GPS compass** while you're moving.
+- **Parking sensors you can read:** coloured arcs around the car, a STOP sign when you're close, and a sensor card that stays visible while the camera is up.
+- **Forward camera inside the dash:** the panels stay on screen around it, it closes itself past 15 km/h, and the picture is smooth.
+- **Autopilot attention warning:** a blue LED bar that pulses out from the centre, with a soft breathing glow around the centre window. It clears as soon as the car does.
+- **CarPlay on your terms:** starts only when you tap CarPlay, and one tap ends it and rejoins your home Wi-Fi. A small icon shows Wi-Fi or CarPlay hotspot.
+- **Light, dark or Auto theme:** Auto follows the screen brightness the car sets, so it goes dark with the car at night.
+- **Steering-wheel control** of the dock and settings, three text sizes, and the menu on either side for right- or left-hand drive.
+
+## What it fixes compared with the stock dash
+- **Battery %:** on some cars the stock "battery level" field is stuck (77 % all day here), and the stock dash shows another field as "km" when it isn't range at all. Binnacle decodes the real % from that second field, checked against a full 13 % to 100 % charge.
+- **No door pop-up:** the stock software throws a full-screen picture up every time a door or the boot opens. Binnacle keeps your dash in view and shows the doors on its own car instead.
+- **Camera that works:** the stock camera could fail with "camera error 4" after a reboot and judders on the 56 Hz panel. Binnacle sets up the camera input itself, paces frames evenly, and hides the start-up roll.
+- **CarPlay that doesn't hijack your phone:** with the stock setup, CarPlay grabbed the phone and the unit's Wi-Fi whenever it could. Now it only connects when asked.
+- **No stray toasts:** the stock dash's background pop-ups over the screen are gone.
+- **Warnings that clear on time:** the attention warning goes away when the car clears it, not seconds later.
+- **Theme that doesn't flip-flop:** Auto waits for the car's light level to settle before switching.
+
 ## Status
 In daily use on the owner's car since 29 Oct 2026, as the unit's Home app (it replaces the stock dash; the stock launcher stays installed as the fallback).
 - ✅ Reverse-engineered the stock CAN data interface and built a **field map** (`docs/FIELD_MAP.md`).
