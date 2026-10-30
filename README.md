@@ -25,6 +25,7 @@ On a ship, the binnacle is the stand in front of the helm that holds the compass
 - **Steering-wheel control**
 
 ## What it fixes compared with the stock dash
+- **Android Settings Access:** the stock dash went out of its way to hide the normal Android Settings app, Binnacle restores this.
 - **Battery %:** on some cars the stock "battery level" field is stuck (77 % all day here), and the stock dash shows another field as "km" when it isn't range at all. Binnacle decodes the real % from that second field, checked against a full 13 % to 100 % charge.
 - **No door pop-up:** the stock software throws a full-screen picture up every time a door or the boot opens. Binnacle keeps your dash in view and shows the doors on its own car instead.
 - **Camera that works:** the stock camera could fail with "camera error 4" after a reboot and judders on the 56 Hz panel. Binnacle sets up the camera input itself, paces frames evenly, and hides the start-up roll.
