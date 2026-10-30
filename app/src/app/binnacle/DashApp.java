@@ -207,14 +207,16 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
      */
     public CarArt art() {
         final int colour = car.carColour;
-        if (art != null && artColour == colour) return art;
+        final boolean lhd = leftHandDrive();
+        final int key = colour * 2 + (lhd ? 1 : 0);   // a colour or driving-side change reloads
+        if (art != null && artColour == key) return art;
         if (!artLoading) {
             artLoading = true;
             new Thread(new Runnable() {
                 @Override public void run() {
                     CarArt a;
                     try {
-                        a = CarArt.load(DashApp.this, colour);
+                        a = CarArt.load(DashApp.this, colour, lhd);
                     } catch (Throwable t) {
                         a = CarArt.NONE;
                     }
@@ -222,7 +224,7 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
                     main.post(new Runnable() {
                         @Override public void run() {
                             art = loaded;
-                            artColour = colour;
+                            artColour = key;
                             artLoading = false;
                             for (Listener l : listeners) l.onCarChanged(-1);
                         }
@@ -233,7 +235,10 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         return art;
     }
 
-    /** Forget the renders, e.g. after storage permission is granted. */
+    /** Driving side (Display → Driving side): left-hand drive uses the lhd car renders. */
+    public boolean leftHandDrive() { return "lhd".equals(prefs.getString("drive_side", "rhd")); }
+
+    /** Forget the renders and load them again (e.g. the driving side changed). */
     public void reloadArt() {
         artColour = Integer.MIN_VALUE;
         art();
@@ -255,6 +260,7 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         if ("text_size".equals(key)) applyTextSize();
         if ("autopilot_rainbow".equals(key)) rainbowRoad = prefs.getBoolean(key, false);
         if ("theme".equals(key)) updateTheme(true);
+        if ("drive_side".equals(key)) reloadArt();
         for (Listener l : listeners) l.onCarChanged(-1);
     }
 
