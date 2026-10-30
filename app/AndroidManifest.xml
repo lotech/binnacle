@@ -6,6 +6,10 @@
 
     <!-- READ-ONLY: lets us RECEIVE the stock CAN feed (protectionLevel normal). Nothing is ever sent. -->
     <uses-permission android:name="com.xbs.permission.READ_CAN_DATABASE" />
+    <!-- Starting the optional drive logger (a separate app, same signing key). Declared here too so it
+         is granted whichever app is installed first. -->
+    <permission android:name="app.binnacle.permission.CONTROL_LOGGER" android:protectionLevel="signature" />
+    <uses-permission android:name="app.binnacle.permission.CONTROL_LOGGER" />
     <!-- Only so the forward-camera trigger may open the camera while CarPlay is in front (Android 10
          blocks background activity starts otherwise). Grant: adb shell appops set <APP_ID> SYSTEM_ALERT_WINDOW allow -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />

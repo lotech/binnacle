@@ -1,30 +1,30 @@
-# capture/ — BinnacleLogger (read-only)
+# capture/ — Binnacle logger (optional developer tool, read-only)
 
-A tiny Android app that binds the stock CAN service (com.xbs.canapp), subscribes to all data codes (0-127), and logs every field (with raw values + timestamps) to a file, plus logcat (tag `BinnacleLogger`). It only ever registers/unregisters and receives — it never writes to the MCU or CAN.
+A small separate Android app that records the car data the head unit publishes, for working on the dash (finding new fields, checking a drive). **You don't need it to use Binnacle**, and Binnacle never installs it.
 
-## Source
-- `src/app/binnacle/logger/MainActivity.java` — thin UI that starts the capture service.
-- `src/app/binnacle/logger/CaptureService.java` — foreground service: binds the AIDL service, registers a Messenger, logs each Bundle.
-- `AndroidManifest.xml`
+## What it records, and what it doesn't
+- **Records:** every field the stock CAN service (`com.xbs.canapp`) publishes, codes 0–127 (speed, gear, doors, battery, lights, tyre pressures, odometer and so on), with timestamps.
+- **Never records location.** It has no location permission.
+- **Never sends anything to the car.** It only registers, receives and unregisters (IMcuService transactions 1 and 2), and the build refuses anything else.
 
-## GPS survey
-Also logs the unit's own GPS (not the car): each fix as `[gps]` (position to 5 decimals, accuracy, altitude, speed, bearing and their accuracies, fix age), and satellite counts as `[gnss]` at most every 5 s. This is to learn what the receiver supplies (rate, accuracy, dropouts) for future features such as an offline map. It needs the location permission:
-```
-adb shell pm grant app.binnacle.logger android.permission.ACCESS_FINE_LOCATION
-```
-Logs then contain your location: keep them out of the repo.
+## Where the logs go, and for how long
+- In the app's **private storage** (`/data/data/app.binnacle.logger/files/logs/`), not on `/sdcard`, so other apps can't read them.
+- They roll over at 10 MB, keeping one older file, and anything older than **7 days** is deleted.
+- The logger's screen shows what's stored, with **Delete logs now** and **Export logs to Downloads** (copies them out only when you ask).
+- **Uninstalling the app deletes every log.**
 
-## Build (no Gradle)
+## Starting and stopping
+- Open **Binnacle logger** and tap **Start recording** or **Stop recording**. A notification shows while it records.
+- The car's sleep force-stops it. If you want it running on every drive, turn on Apps & settings → Advanced → **Drive logger: start with the dash** in Binnacle (off by default).
+- Only Binnacle can start it: the service needs `app.binnacle.permission.CONTROL_LOGGER`, a signature permission, so only apps signed with the same key qualify.
+
+## Build and install (no Gradle)
 ```
 capture/build.sh    # -> capture/build/BinnacleLogger.apk
+adb install -r capture/build/BinnacleLogger.apk
 ```
-It refuses to build if the source has any binder call other than IMcuService register (1) / unregister (2), or a car-write API.
+Remove it from Binnacle (Advanced → Remove drive logger) or with `adb uninstall app.binnacle.logger`.
 
-## Run
-```
-adb install -r BinnacleLogger.apk
-# open "Binnacle logger"; it logs to:
-#   /sdcard/Android/data/app.binnacle.logger/files/binnacle_log.txt
-adb pull /sdcard/Android/data/app.binnacle.logger/files/binnacle_log.txt
-```
-Undo: `adb uninstall app.binnacle.logger`.
+## Source
+- `src/app/binnacle/logger/MainActivity.java`: the screen (status, start/stop, delete, export).
+- `src/app/binnacle/logger/CaptureService.java`: the foreground service that binds the CAN service, registers a Messenger and writes each Bundle.

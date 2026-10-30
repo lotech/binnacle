@@ -126,6 +126,7 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
      * starts. Does nothing if the logger isn't installed. Receive-only like the dash.
      */
     private void startLogger() {
+        if (!app.prefs().getBoolean("logger_autostart", false)) return;   // opt-in only (Advanced -> Drive logger)
         try {
             android.content.Intent i = new android.content.Intent().setComponent(
                     new android.content.ComponentName("app.binnacle.logger", "app.binnacle.logger.CaptureService"));

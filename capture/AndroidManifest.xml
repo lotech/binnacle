@@ -1,23 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="app.binnacle.logger"
-    android:versionCode="2" android:versionName="0.2-gps">
+    android:versionCode="3" android:versionName="0.3">
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="29" />
+    <!-- Only apps signed with the same key (Binnacle itself) may start or stop the logger. Declared
+         here and in Binnacle, so it works whichever of the two is installed first. -->
+    <permission android:name="app.binnacle.permission.CONTROL_LOGGER" android:protectionLevel="signature" />
     <!-- READ-ONLY: this permission only lets us RECEIVE CAN data. normal protectionLevel. -->
     <uses-permission android:name="com.xbs.permission.READ_CAN_DATABASE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- GPS survey only (read-only): what the unit's own GNSS receiver supplies. Grant with adb pm grant. -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- No location permission: the logger never records where the car is. -->
     <application android:label="Binnacle logger" android:icon="@drawable/ic_launcher" android:allowBackup="false">
-        <!-- Deliberately NOT a HOME app in the skeleton: a plain launchable app you open to read live values. -->
         <activity android:name=".MainActivity" android:exported="true" android:label="Binnacle logger">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-            <!-- location type: keeps GPS access while the dash or CarPlay is in front (Android 10 counts it as background otherwise) -->
-            <!-- exported so the dash can (re)start it whenever the dash starts: the car's sleep force-stops it (29 Oct) -->
-            <service android:name=".CaptureService" android:exported="true" android:foregroundServiceType="location" />
+        <!-- Exported only to apps holding CONTROL_LOGGER (same signing key): Binnacle starts it when
+             "Start the logger with the dash" is on, since the car's sleep force-stops it. -->
+        <service android:name=".CaptureService" android:exported="true"
+            android:permission="app.binnacle.permission.CONTROL_LOGGER" />
     </application>
 </manifest>

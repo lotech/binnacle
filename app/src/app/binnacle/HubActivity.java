@@ -193,6 +193,7 @@ public class HubActivity extends Activity {
         if (textScaleBuilt != Style.textScale) { recreate(); return; }   // text size changed: rebuild at the new size
         if (lightBuilt != Style.light) { recreate(); return; }           // theme changed meanwhile (Auto)
         if (tab == 1) showTab(1);                                          // CarPlay layout may have changed meanwhile
+        else if (tab >= 4) showTab(tab);                                   // back from the uninstaller: logger state
     }
 
     private void showTab(int i) {
@@ -229,6 +230,7 @@ public class HubActivity extends Activity {
             default: content.addView(cards(
                     switchCard("Show raw CAN values", "Latest raw fields over the centre view, for in-car checks", "raw_overlay", false),
                     switchCard("Demo data", "Simulated drive instead of the car feed", "demo", false),
+                    loggerCards(),
                     infoCard("About", "Binnacle, a read-only dash for this unit.\n"
                             + "Car model: \"Tesla 2018 Model 3\" by Ameer Studio, CC BY 4.0, modified "
                             + "(recoloured, mirrored for right-hand drive, posed, rendered)."))); break;
@@ -432,6 +434,58 @@ public class HubActivity extends Activity {
     }
 
     /** On / off as one big chip. */
+    static final String LOGGER_PKG = "app.binnacle.logger", OLD_LOGGER_PKG = "com.lotech.tesladash";
+
+    /**
+     * The optional drive logger, a separate developer app installed by hand (never by Binnacle):
+     * whether it is installed, an opt-in "start with the dash" switch (off by default), and
+     * Uninstall, which opens Android's own uninstall dialog and so wipes its logs. An old
+     * location-recording logger, if present, is offered for removal.
+     */
+    private View loggerCards() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        if (installed(OLD_LOGGER_PKG)) {
+            box.addView(uninstallCard("Old drive logger found",
+                    "An older logger that also recorded location. Uninstall it to delete its logs.", OLD_LOGGER_PKG));
+        }
+        if (installed(LOGGER_PKG)) {
+            box.addView(switchCard("Drive logger: start with the dash",
+                    "Records car data, never location, to its own private storage; kept 7 days", "logger_autostart", false));
+            box.addView(uninstallCard("Remove drive logger", "Uninstalling also deletes all its logs", LOGGER_PKG));
+        } else {
+            box.addView(infoCard("Drive logger (optional)", "A developer tool that records car data, never location. "
+                    + "Not installed, and Binnacle never installs it. To add it: adb install BinnacleLogger.apk "
+                    + "from github.com/lotech/binnacle/releases"));
+        }
+        return box;
+    }
+
+    private boolean installed(String pkg) {
+        try {
+            getPackageManager().getPackageInfo(pkg, 0);
+            return true;
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    private View uninstallCard(String title, String summary, final String pkg) {
+        LinearLayout card = card(title, summary);
+        TextView b = chip("Uninstall");
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                try {
+                    startActivity(new Intent(Intent.ACTION_DELETE, android.net.Uri.parse("package:" + pkg)));
+                } catch (RuntimeException e) {
+                    Toast.makeText(HubActivity.this, "Couldn't open the uninstaller", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+        card.addView(b, new LinearLayout.LayoutParams(dp(150), dp(BUTTON_DP)));
+        return card;
+    }
+
     private View switchCard(String title, String summary, final String key, boolean def) {
         LinearLayout card = card(title, summary);
         final TextView b = chip(prefs.getBoolean(key, def) ? "On" : "Off");

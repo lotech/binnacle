@@ -17,10 +17,6 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.Parcel;
 import android.util.Log;
-import android.location.GnssStatus;
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -31,11 +27,21 @@ import java.util.Locale;
 import java.text.SimpleDateFormat;
 
 /**
- * Foreground service that captures the CAN feed to a file independently of any visible UI,
- * so it keeps logging while driving (CarPlay / normal dash in front). READ-ONLY: it only ever
- * calls register (txn 1) and unregister (txn 2) of IMcuService; never any tx/write.
+ * Foreground service that records the car data feed to a file while it runs, for developing the
+ * dash. READ-ONLY: it only ever calls register (txn 1) and unregister (txn 2) of IMcuService;
+ * never any tx/write.
+ *
+ * Privacy: it records no location. Logs live in the app's private storage (not /sdcard), roll over
+ * at ROLL_BYTES keeping one older file, and anything older than KEEP_DAYS is deleted at start.
+ * Uninstalling the app deletes them all.
  */
 public class CaptureService extends Service {
+
+    /** Sent by the logger's own screen to stop recording. */
+    static final String ACTION_STOP = "app.binnacle.logger.STOP";
+    static final long ROLL_BYTES = 10L * 1024 * 1024;
+    static final int KEEP_DAYS = 7;
+    static final String LOG_NAME = "binnacle_log.txt", OLD_NAME = "binnacle_log.1.txt";
 
     private static final String TAG = "BinnacleLogger";
     private static final String DESCRIPTOR = "com.mcu.iinterface.aidl.IMcuService";
@@ -46,31 +52,46 @@ public class CaptureService extends Service {
     private static int[] props() { int[] a = new int[128]; for (int i=0;i<a.length;i++) a[i]=i; return a; }
     private static final int[] PROP_IDS = props();
 
-    private final SimpleDateFormat ts = new SimpleDateFormat("HH:mm:ss.SSS", Locale.US);
+    static volatile boolean running;
+
+    private final SimpleDateFormat ts = new SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US);
     private HandlerThread ht;
     private Handler handler;
     private Messenger messenger;
     private IBinder binder;
     private boolean registered;
     private FileWriter w;
+    private File logFile;
 
     private final ServiceConnection conn = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName n, IBinder s) { binder = s; log("service connected: " + n); register(); }
         @Override public void onServiceDisconnected(ComponentName n) { binder = null; registered = false; log("service disconnected"); }
     };
 
+    /** The private folder holding the logs. */
+    static File logDir(Context c) { return new File(c.getFilesDir(), "logs"); }
+
+    /** Deletes log files older than KEEP_DAYS. */
+    static void prune(Context c) {
+        File[] files = logDir(c).listFiles();
+        if (files == null) return;
+        long cutoff = System.currentTimeMillis() - KEEP_DAYS * 24L * 3600_000L;
+        for (File f : files) if (f.lastModified() < cutoff) //noinspection ResultOfMethodCallIgnored
+            f.delete();
+    }
+
     @Override public void onCreate() {
         super.onCreate();
+        running = true;
         ht = new HandlerThread("cap"); ht.start();
         handler = new Handler(ht.getLooper()) {
             @Override public void handleMessage(Message msg) { record(msg); }
         };
         messenger = new Messenger(handler);
+        prune(this);
         openLog();
         startForegroundNotif();
-        log("CaptureService started (read-only, background). Capturing codes 0-127.");
-        if (w != null) log("Logging to the app's external files dir (pull over ADB).");
-        startGps();
+        log("CaptureService started (read-only). Capturing codes 0-127. No location is recorded.");
         try {
             Intent i = new Intent(SVC_ACTION); i.setPackage(SVC_PKG);
             boolean ok = bindService(i, conn, Context.BIND_AUTO_CREATE);
@@ -78,18 +99,25 @@ public class CaptureService extends Service {
         } catch (Throwable t) { log("bind err: " + t); }
     }
 
-    @Override public int onStartCommand(Intent intent, int flags, int startId) { return START_STICKY; }
+    @Override public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null && ACTION_STOP.equals(intent.getAction())) {
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+        return START_STICKY;
+    }
+
     @Override public IBinder onBind(Intent intent) { return null; }
 
     private void startForegroundNotif() {
         try {
             NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             if (Build.VERSION.SDK_INT >= 26) {
-                nm.createNotificationChannel(new NotificationChannel(CH, "CAN capture", NotificationManager.IMPORTANCE_LOW));
+                nm.createNotificationChannel(new NotificationChannel(CH, "Car data logger", NotificationManager.IMPORTANCE_LOW));
             }
             Notification.Builder b = (Build.VERSION.SDK_INT >= 26) ? new Notification.Builder(this, CH) : new Notification.Builder(this);
-            b.setContentTitle("Binnacle logger (read-only)")
-             .setContentText("Recording CAN data to file")
+            b.setContentTitle("Binnacle logger is recording")
+             .setContentText("Car data only, no location. Kept " + KEEP_DAYS + " days.")
              .setSmallIcon(android.R.drawable.ic_menu_info_details)
              .setOngoing(true);
             startForeground(1, b.build());
@@ -98,11 +126,26 @@ public class CaptureService extends Service {
 
     private void openLog() {
         try {
-            File dir = getExternalFilesDir(null); if (dir == null) dir = getFilesDir();
-            File f = new File(dir, "binnacle_log.txt");
-            w = new FileWriter(f, true);
+            File dir = logDir(this);
+            if (!dir.isDirectory() && !dir.mkdirs()) throw new IllegalStateException("can't create " + dir);
+            logFile = new File(dir, LOG_NAME);
+            w = new FileWriter(logFile, true);
             w.write("\n==== capture-service session " + new Date() + " ====\n"); w.flush();
         } catch (Throwable t) { w = null; Log.w(TAG, "log open err: " + t); }
+    }
+
+    /** Past ROLL_BYTES: the current file becomes the one older file (replacing it) and a new one starts. */
+    private void rollIfNeeded() {
+        if (logFile == null || logFile.length() < ROLL_BYTES) return;
+        try {
+            w.close();
+            File old = new File(logFile.getParentFile(), OLD_NAME);
+            //noinspection ResultOfMethodCallIgnored
+            old.delete();
+            //noinspection ResultOfMethodCallIgnored
+            logFile.renameTo(old);
+            w = new FileWriter(logFile, true);
+        } catch (Throwable t) { w = null; Log.w(TAG, "log roll err: " + t); }
     }
 
     private void register() {
@@ -148,69 +191,14 @@ public class CaptureService extends Service {
         } catch (Throwable t) { log("record err: " + t); }
     }
 
-    private void log(String s) {
+    private synchronized void log(String s) {
         String line = ts.format(new Date()) + "  " + s;
-        Log.i(TAG, line);
-        try { if (w != null) { w.write(line + "\n"); w.flush(); } } catch (Throwable ignored) {}
-    }
-
-    // ---- GPS survey: what the unit's GNSS supplies (rate, accuracy, bearing, speed, altitude,
-    // satellites, dropouts). Receive-only, nothing to do with the car. Each fix is logged as [gps]
-    // (position to 5 decimals, ~1 m); satellite counts as [gnss] at most every 5 s.
-    private LocationManager lm;
-    private long lastGnssLog;
-    private final LocationListener gpsListener = new LocationListener() {
-        @Override public void onLocationChanged(Location l) {
-            log(String.format(Locale.US, "[gps] lat=%.5f lon=%.5f acc=%s alt=%s spd=%s brg=%s brgAcc=%s spdAcc=%s fixAgeMs=%d",
-                l.getLatitude(), l.getLongitude(),
-                l.hasAccuracy() ? String.format(Locale.US, "%.1f", l.getAccuracy()) : "-",
-                l.hasAltitude() ? String.format(Locale.US, "%.1f", l.getAltitude()) : "-",
-                l.hasSpeed() ? String.format(Locale.US, "%.2f", l.getSpeed()) : "-",
-                l.hasBearing() ? String.format(Locale.US, "%.1f", l.getBearing()) : "-",
-                Build.VERSION.SDK_INT >= 26 && l.hasBearingAccuracy() ? String.format(Locale.US, "%.1f", l.getBearingAccuracyDegrees()) : "-",
-                Build.VERSION.SDK_INT >= 26 && l.hasSpeedAccuracy() ? String.format(Locale.US, "%.2f", l.getSpeedAccuracyMetersPerSecond()) : "-",
-                (System.currentTimeMillis() - l.getTime())));
-        }
-        @Override public void onStatusChanged(String p, int st, Bundle e) { log("[gps] status " + p + "=" + st); }
-        @Override public void onProviderEnabled(String p) { log("[gps] provider enabled " + p); }
-        @Override public void onProviderDisabled(String p) { log("[gps] provider disabled " + p); }
-    };
-    private Object gnssCallback;
-
-    private void startGps() {
-        try {
-            lm = (LocationManager) getSystemService(LOCATION_SERVICE);
-            if (lm == null) { log("[gps] no LocationManager"); return; }
-            log("[gps] providers=" + lm.getAllProviders() + " gpsEnabled=" + lm.isProviderEnabled(LocationManager.GPS_PROVIDER));
-            lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, gpsListener, ht.getLooper());
-            if (Build.VERSION.SDK_INT >= 24) {
-                GnssStatus.Callback cb = new GnssStatus.Callback() {
-                    @Override public void onStarted() { log("[gnss] started"); }
-                    @Override public void onStopped() { log("[gnss] stopped"); }
-                    @Override public void onFirstFix(int ttffMillis) { log("[gnss] first fix ttff=" + ttffMillis + "ms"); }
-                    @Override public void onSatelliteStatusChanged(GnssStatus s) {
-                        long now = System.currentTimeMillis();
-                        if (now - lastGnssLog < 5000) return;
-                        lastGnssLog = now;
-                        int used = 0; float best = 0;
-                        for (int i = 0; i < s.getSatelliteCount(); i++) {
-                            if (s.usedInFix(i)) used++;
-                            best = Math.max(best, s.getCn0DbHz(i));
-                        }
-                        log("[gnss] sats=" + s.getSatelliteCount() + " used=" + used + " bestCn0=" + best);
-                    }
-                };
-                gnssCallback = cb;
-                lm.registerGnssStatusCallback(cb, new Handler(ht.getLooper()));
-            }
-            log("[gps] listening");
-        } catch (SecurityException e) {
-            log("[gps] no location permission (adb shell pm grant app.binnacle.logger android.permission.ACCESS_FINE_LOCATION)");
-        } catch (Throwable t) { log("[gps] err: " + t); }
+        Log.d(TAG, line);
+        try { if (w != null) { w.write(line + "\n"); w.flush(); rollIfNeeded(); } } catch (Throwable ignored) {}
     }
 
     @Override public void onDestroy() {
-        try { if (lm != null) { lm.removeUpdates(gpsListener); if (Build.VERSION.SDK_INT >= 24 && gnssCallback != null) lm.unregisterGnssStatusCallback((GnssStatus.Callback) gnssCallback); } } catch (Throwable ignored) {}
+        running = false;
         try { unregister(); } catch (Throwable ignored) {}
         try { unbindService(conn); } catch (Throwable ignored) {}
         try { if (w != null) { w.flush(); w.close(); } } catch (Throwable ignored) {}
