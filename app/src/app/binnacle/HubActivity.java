@@ -199,6 +199,8 @@ public class HubActivity extends Activity {
                             "End CarPlay", LocalShell.Command.END_CARPLAY),
                     choiceCard("Tyre pressure", null, "tyre_unit", "psi",
                             new String[]{"psi", "bar"}, new String[]{"psi", "bar"}),
+                    choiceCard("Driving side", "Which side the steering wheel is on (car pictures)", "drive_side", "rhd",
+                            new String[]{"rhd", "lhd"}, new String[]{"Right", "Left"}),
                     choiceCard("Menu side", null, "menu_side", "right",
                             new String[]{"left", "right"}, new String[]{"Left", "Right"}),
                     stepperCard("Range at 100%", "For the km estimate under the battery %", "full_range_km", 410, 150, 700, 5, "km"),                    infoCard("CarPlay layout", carplayLayoutText()))); break;

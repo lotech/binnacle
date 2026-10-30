@@ -10,13 +10,17 @@ import java.io.InputStream;
 
 /**
  * Car renders. The app bundles its own, rendered from a CC BY 4.0 model ("Tesla 2018 Model 3" by
- * Ameer Studio, see assets/cars/CREDITS.txt), in assets/cars/teshila_car_<colour>/ with the same
- * file names and layout as the stock ZIQI renders (the stock dash's own renders are never used).
+ * Ameer Studio, see assets/cars/CREDITS.txt), in assets/cars/<hand>/teshila_car_<colour>/ (hand =
+ * rhd or lhd: which side the steering wheel and driver's door are on) with the same file names and
+ * layout as the stock ZIQI renders (the stock dash's own renders are never used). Door layers are
+ * named by their real side in both, so the door logic is the same either way.
  * Where to look, first match wins:
  * <ol>
- *   <li>a pack in this app's external files dir (another colour, or new renders without a build);</li>
- *   <li>the bundled pack for the car's colour;</li>
- *   <li>any bundled colour (silver first).</li>
+ *   <li>a pack in this app's external files dir, files/<hand>/teshila_car_<colour>/ (another colour,
+ *       or new renders without a build);</li>
+ *   <li>the bundled pack for the car's colour and hand;</li>
+ *   <li>any bundled colour in that hand (silver first);</li>
+ *   <li>the other hand, so there is always a car (a mirror-image interior beats none).</li>
  * </ol>
  * If none are found the views draw their own simple car shapes instead.
  */
@@ -48,8 +52,9 @@ final class CarArt {
         this.top = top;
     }
 
-    static CarArt load(Context c, int carColour) {
-        Source s = find(c, carColour);
+    static CarArt load(Context c, int carColour, boolean leftHandDrive) {
+        Source s = find(c, carColour, leftHandDrive ? "lhd" : "rhd");
+        if (s == null) s = find(c, carColour, leftHandDrive ? "rhd" : "lhd");
         if (s == null) return NONE;
         return new CarArt(s,
                 s.decode("car/teshila_car_bg(0).png"),
@@ -57,23 +62,23 @@ final class CarArt {
                 s.decode("tpmscar/tpmscar.png"));
     }
 
-    private static Source find(Context c, int carColour) {
+    private static Source find(Context c, int carColour, String hand) {
         String preferred = carColour >= 0 && carColour < COLOURS.length ? COLOURS[carColour] : "silver";
         AssetManager am = c.getAssets();
-        Source s = folder(c.getExternalFilesDir(null), preferred);
-        if (s == null) s = asset(am, preferred);
-        for (int i = COLOURS.length - 1; s == null && i >= 0; i--) s = asset(am, COLOURS[i]);   // silver first
+        Source s = folder(c.getExternalFilesDir(null), hand, preferred);
+        if (s == null) s = asset(am, hand, preferred);
+        for (int i = COLOURS.length - 1; s == null && i >= 0; i--) s = asset(am, hand, COLOURS[i]);   // silver first
         return s;
     }
 
-    private static Source folder(File root, String colour) {
+    private static Source folder(File root, String hand, String colour) {
         if (root == null) return null;
-        File d = new File(root, "teshila_car_" + colour);
+        File d = new File(new File(root, hand), "teshila_car_" + colour);
         return d.isDirectory() ? new FolderSource(d) : null;
     }
 
-    private static Source asset(AssetManager am, String colour) {
-        String dir = ASSET_ROOT + "/teshila_car_" + colour;
+    private static Source asset(AssetManager am, String hand, String colour) {
+        String dir = ASSET_ROOT + "/" + hand + "/teshila_car_" + colour;
         try {
             String[] list = am.list(dir);
             return list != null && list.length > 0 ? new AssetSource(am, dir) : null;
