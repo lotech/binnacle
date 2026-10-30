@@ -81,6 +81,32 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
         root.addView(right, new LinearLayout.LayoutParams(0, -1, Style.SIDE_W));
         setContentView(root);
         // no storage permission: the car renders are bundled (or in this app's own files dir)
+        if (!app.prefs().contains("drive_side")) askDriveSide();
+    }
+
+    /**
+     * First start: which side the steering wheel is on (car renders, and the settings menu goes on
+     * the driver's side unless already chosen). Asked again next start if dismissed; changeable
+     * later in Apps & settings -> Display -> Driving side.
+     */
+    private void askDriveSide() {
+        final android.content.SharedPreferences p = app.prefs();
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Welcome to Binnacle")
+                .setMessage("Which side is your steering wheel on?")
+                .setPositiveButton("Right", new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) { setDriveSide(p, "rhd", "right"); }
+                })
+                .setNegativeButton("Left", new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) { setDriveSide(p, "lhd", "left"); }
+                })
+                .show();
+    }
+
+    private static void setDriveSide(android.content.SharedPreferences p, String side, String menu) {
+        android.content.SharedPreferences.Editor e = p.edit().putString("drive_side", side);
+        if (!p.contains("menu_side")) e.putString("menu_side", menu);
+        e.apply();
     }
 
     @Override public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
