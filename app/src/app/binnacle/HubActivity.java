@@ -153,6 +153,8 @@ public class HubActivity extends Activity {
         @Override public void onCarChanged(int code) {
             if (code == DashApp.THEME_CHANGED && lightBuilt != Style.light) recreate();
             if (code == DashApp.PACKS_CHANGED && tab == 1) showTab(1);   // whichever Car pictures card is showing now
+            // the car reports its colour (code 9) after the card was built: rebuild it for that colour
+            if (tab == 1 && packCardColour != DashApp.get(HubActivity.this).car.carColour) showTab(1);
         }
     };
 
@@ -445,9 +447,20 @@ public class HubActivity extends Activity {
      * Car pictures for the car's colour (from the car) and the driving side: built in, downloaded,
      * or a Download button that fetches the pack from the project's GitHub release (CarPacks).
      */
+    /** The car colour the Car pictures card was built for (-1: not reported yet). */
+    private int packCardColour = Integer.MIN_VALUE;
+
     private View carPicturesCard() {
         final DashApp app = DashApp.get(this);
         int c = app.car.carColour;
+        packCardColour = c;
+        if (c < 0) {                                   // not reported yet: don't guess a colour to fetch
+            LinearLayout card = card("Car pictures", "Waiting for the car to report its colour");
+            TextView wait = chip("…");
+            wait.setEnabled(false);
+            card.addView(wait, new LinearLayout.LayoutParams(dp(150), dp(BUTTON_DP)));
+            return card;
+        }
         final String colour = c >= 0 && c < CarPacks.COLOURS.length ? CarPacks.COLOURS[c] : "silver";
         final String hand = app.leftHandDrive() ? "lhd" : "rhd";   // the tab rebuilds when the side changes
         String what = Character.toUpperCase(colour.charAt(0)) + colour.substring(1)
