@@ -329,8 +329,11 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
                 break;
             case 2:
             case DashApp.HEADING_CHANGED:      // GPS compass, top right of the centre window
-            case DashApp.LOGGER_CHANGED:       // logger badge
                 centre.invalidate();
+                break;
+            case DashApp.LOGGER_CHANGED:       // logger badge (centre) and eye (beside the Wi-Fi icon)
+                centre.invalidate();
+                right.invalidate();
                 break;
             default:
                 followFrontCam();                  // e.g. a feed reset clears the flag

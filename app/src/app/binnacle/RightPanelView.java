@@ -89,6 +89,7 @@ public class RightPanelView extends View {
         c.drawText("OUTSIDE", X0 + mid.measureText(t) + 12, 93, lbl);
         netIconX = X1 - 30; // right edge lines up with the battery % below (icon is ~15 px either side)
         drawNetIcon(c, netIconX, 86);
+        drawLoggerEye(c, netIconX - 42, 86);
 
         drawBattery(c);
         drawMiddleCard(c);
@@ -426,6 +427,28 @@ public class RightPanelView extends View {
     }
 
     /** Wi-Fi fan, or a hotspot (dot with rings), or a dim fan when neither; tap for the switch prompt. */
+    private final Paint eyeLine = Style.stroke(Style.WARN, 2.5f), eyeFill = Style.fill(Style.WARN);
+    private final Path eyePath = new Path();
+
+    /**
+     * An eye beside the Wi-Fi icon whenever a drive logger is installed: amber while installed,
+     * red while it records or if the old location-recording logger is present (the owner, 31 Oct:
+     * it must never run unnoticed). Nothing is drawn when no logger is installed.
+     */
+    private void drawLoggerEye(Canvas c, float cx, float cy) {
+        if (!app.loggerInstalled() && !app.oldLoggerInstalled()) return;
+        int col = app.loggerRecording() || app.oldLoggerInstalled() ? Style.BAD : Style.WARN;
+        eyeLine.setColor(col);
+        eyeFill.setColor(col);
+        eyePath.reset();
+        eyePath.moveTo(cx - 15, cy);
+        eyePath.quadTo(cx, cy - 15, cx + 15, cy);
+        eyePath.quadTo(cx, cy + 15, cx - 15, cy);
+        eyePath.close();
+        c.drawPath(eyePath, eyeLine);
+        c.drawCircle(cx, cy, 4.5f, eyeFill);
+    }
+
     private void drawNetIcon(Canvas c, float cx, float cy) {
         int col = net == NET_NONE ? Style.DIM : Style.MUTED;
         netPaint.setColor(col);
