@@ -22,6 +22,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -159,16 +160,31 @@ public class HubActivity extends Activity {
     private final DashApp.Listener themeListener = new DashApp.Listener() {
         @Override public void onCarChanged(int code) {
             if (code == DashApp.THEME_CHANGED && lightBuilt != Style.light) recreate();
+            if (code == DashApp.PACKS_CHANGED && tab == 1) showTab(1);   // whichever Car pictures card is showing now
+            // the car reports its colour (code 9) after the card was built: rebuild it for that colour
+            if (tab == 1 && packCardColour != DashApp.get(HubActivity.this).car.carColour) showTab(1);
         }
     };
+
+    private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
+
+    /** Driving side changed: rebuild the Display tab so Car pictures shows (and fetches) that side. */
+    private final SharedPreferences.OnSharedPreferenceChangeListener sideListener =
+            new SharedPreferences.OnSharedPreferenceChangeListener() {
+                @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
+                    if ("drive_side".equals(key) && tab == 1) showTab(1);
+                }
+            };
 
     @Override protected void onStart() {
         super.onStart();
         DashApp.get(this).addListener(themeListener);
+        prefs.registerOnSharedPreferenceChangeListener(sideListener);
     }
 
     @Override protected void onStop() {
         DashApp.get(this).removeListener(themeListener);
+        prefs.unregisterOnSharedPreferenceChangeListener(sideListener);
         super.onStop();
     }
 
@@ -201,6 +217,7 @@ public class HubActivity extends Activity {
                             new String[]{"psi", "bar"}, new String[]{"psi", "bar"}),
                     choiceCard("Driving side", "Which side the steering wheel is on (car pictures)", "drive_side", "rhd",
                             new String[]{"rhd", "lhd"}, new String[]{"Right", "Left"}),
+                    carPicturesCard(),
                     choiceCard("Menu side", null, "menu_side", "right",
                             new String[]{"left", "right"}, new String[]{"Left", "Right"}),
                     stepperCard("Range at 100%", "For the km estimate under the battery %", "full_range_km", 410, 150, 700, 5, "km"),                    infoCard("CarPlay layout", carplayLayoutText()))); break;
@@ -470,6 +487,83 @@ public class HubActivity extends Activity {
      * Bluetooth switch; local to the unit, never sent to the car). Read and written through
      * LocalShell, since a normal app may not write Settings.System.
      */
+    /**
+     * Car pictures for the car's colour (from the car) and the driving side: built in, downloaded,
+     * or a Download button that fetches the pack from the project's GitHub release (CarPacks).
+     */
+    /** The car colour the Car pictures card was built for (-1: not reported yet). */
+    private int packCardColour = Integer.MIN_VALUE;
+
+    private View carPicturesCard() {
+        final DashApp app = DashApp.get(this);
+        int c = app.car.carColour;
+        packCardColour = c;
+        if (c < 0) {                                   // not reported yet: don't guess a colour to fetch
+            LinearLayout card = card("Car pictures", "Waiting for the car to report its colour");
+            TextView wait = chip("…");
+            wait.setEnabled(false);
+            card.addView(wait, new LinearLayout.LayoutParams(dp(150), dp(BUTTON_DP)));
+            return card;
+        }
+        final String colour = c >= 0 && c < CarPacks.COLOURS.length ? CarPacks.COLOURS[c] : "silver";
+        final String hand = app.leftHandDrive() ? "lhd" : "rhd";   // the tab rebuilds when the side changes
+        String what = Character.toUpperCase(colour.charAt(0)) + colour.substring(1)
+                + (hand.equals("lhd") ? ", left-hand drive" : ", right-hand drive");
+        final LinearLayout card = card("Car pictures", what);
+        final TextView b = chip("…");
+        final Runnable refresh = new Runnable() {
+            @Override public void run() {
+                boolean bundled = CarPacks.bundled(HubActivity.this, hand, colour);
+                boolean got = CarPacks.downloaded(HubActivity.this, hand, colour);
+                boolean busy = CarPacks.downloading(hand, colour);
+                b.setEnabled(!busy && (!bundled || got));
+                b.setSelected(bundled || got);
+                b.setText(busy ? "Downloading…" : got ? "Remove" : bundled ? "Built in" : "Download");
+            }
+        };
+        refresh.run();
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                if (CarPacks.downloaded(HubActivity.this, hand, colour)) {
+                    CarPacks.remove(HubActivity.this, hand, colour);
+                    DashApp.get(HubActivity.this).reloadArt();
+                    refresh.run();
+                    return;
+                }
+                b.setEnabled(false);
+                b.setText("Downloading…");
+                new Thread(new Runnable() {
+                    @Override public void run() {
+                        String err = null;
+                        try {
+                            CarPacks.download(HubActivity.this, hand, colour, new CarPacks.Progress() {
+                                @Override public void onProgress(final long bytes) {
+                                    main.post(new Runnable() {
+                                        @Override public void run() { b.setText(Math.max(1, bytes >> 20) + " MB…"); }
+                                    });
+                                }
+                            });
+                        } catch (Exception e) {
+                            err = e.getMessage();
+                        }
+                        final String problem = err;
+                        // through the main looper, not the button: the card may be gone by now
+                        // (tab changed, settings closed), but the dash must still pick the pack up
+                        main.post(new Runnable() {
+                            @Override public void run() {
+                                if (problem == null) app.reloadArt();
+                                else Toast.makeText(app, "Couldn't download: " + problem, Toast.LENGTH_LONG).show();
+                                app.notifyChanged(DashApp.PACKS_CHANGED);   // refreshes the card on screen, even a newer one
+                            }
+                        });
+                    }
+                }, "car-pack").start();
+            }
+        });
+        card.addView(b, new LinearLayout.LayoutParams(dp(150), dp(BUTTON_DP)));
+        return card;
+    }
+
     private View btAutoConnectCard() {
         LinearLayout card = card("Bluetooth auto-connect", "Reconnect the phone when the car wakes");
         final TextView b = chip("…");
