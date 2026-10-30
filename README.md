@@ -13,7 +13,7 @@ On a ship, the binnacle is the stand in front of the helm that holds the compass
 
 ## Features
 - **Live car data, never written to:** speed, gear (R P N D), speed-limit sign, indicators and lights, power and regen bar, tyre pressures (psi or bar), parking sensors, doors, boot and frunk, outside temperature, odometer.
-- **Your car, in 3D:** a right-hand-drive Model 3 that turns to show whichever door is open, opens it, and highlights the boot and frunk. In Drive it sits on a moving road with headlight glow, and on Autopilot the lane turns blue (or a rainbow road, if you like).
+- **Your car, in 3D:** Shows whichever door is open, opens it, and highlights the boot and frunk. In Drive it sits on a moving road with headlight glow, and on Autopilot the lane turns blue (or a rainbow road, if you like). Supports Left and Right Hand Drive Cars and the original Dashes colour options. Different colours are available via the app and downloaded from the repo.
 - **Real battery %:** decoded from a field the stock software mislabels (see below), with a range estimate and charging animation.
 - **Efficiency:** Wh/km over the last 5 km, a 15-minute power and regen graph, and this drive's totals.
 - **GPS compass**
