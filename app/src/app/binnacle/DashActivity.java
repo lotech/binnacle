@@ -139,6 +139,7 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
     @Override protected void onStart() {
         super.onStart();
         startLogger();
+        app.checkLogger();                  // the logger badge is always current when the dash shows
         app.startCompass();                 // no-op once running; picks up a location grant made since
         // the theme changed while we were stopped (e.g. set in Apps & settings): rebuild in it
         if (lightBuilt != Style.light) { recreate(); return; }
@@ -328,6 +329,7 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
                 break;
             case 2:
             case DashApp.HEADING_CHANGED:      // GPS compass, top right of the centre window
+            case DashApp.LOGGER_CHANGED:       // logger badge
                 centre.invalidate();
                 break;
             default:

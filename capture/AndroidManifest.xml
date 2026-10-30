@@ -7,6 +7,7 @@
          here and in Binnacle, so it works whichever of the two is installed first. -->
     <permission android:name="app.binnacle.permission.CONTROL_LOGGER" android:protectionLevel="signature" />
     <!-- READ-ONLY: this permission only lets us RECEIVE CAN data. normal protectionLevel. -->
+    <uses-permission android:name="app.binnacle.permission.CONTROL_LOGGER" />
     <uses-permission android:name="com.xbs.permission.READ_CAN_DATABASE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <!-- No location permission: the logger never records where the car is. -->
@@ -21,5 +22,10 @@
              "Start the logger with the dash" is on, since the car's sleep force-stops it. -->
         <service android:name=".CaptureService" android:exported="true"
             android:permission="app.binnacle.permission.CONTROL_LOGGER" />
+        <!-- Binnacle asks "are you recording?" so the dash can always show it (same-key apps only). -->
+        <receiver android:name=".StateReceiver" android:exported="true"
+            android:permission="app.binnacle.permission.CONTROL_LOGGER">
+            <intent-filter><action android:name="app.binnacle.logger.QUERY" /></intent-filter>
+        </receiver>
     </application>
 </manifest>

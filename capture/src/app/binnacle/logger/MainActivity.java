@@ -70,10 +70,28 @@ public class MainActivity extends Activity {
                 refresh();
             }
         });
-        button(root, "Export logs to Downloads").setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { export(); }
+        final Button exportB = button(root, "Export logs to Downloads");
+        exportB.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                exportB.setEnabled(false);
+                exportB.setText("Exporting…");
+                new Thread(new Runnable() {       // can be ~150 MB: never on the UI thread
+                    @Override public void run() {
+                        final String msg = export();
+                        runOnUiThread(new Runnable() {
+                            @Override public void run() {
+                                exportB.setEnabled(true);
+                                exportB.setText("Export logs to Downloads");
+                                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                            }
+                        });
+                    }
+                }, "export").start();
+            }
         });
-        setContentView(root);
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);   // 720 px tall screens
+        scroll.addView(root);
+        setContentView(scroll);
     }
 
     @Override protected void onResume() {
@@ -100,12 +118,9 @@ public class MainActivity extends Activity {
         startStop.setText(CaptureService.running ? "Stop recording" : "Start recording");
     }
 
-    /** Copies the logs to the shared Downloads folder, only when asked (Android 10+). */
-    private void export() {
-        if (Build.VERSION.SDK_INT < 29) {
-            Toast.makeText(this, "Export needs Android 10; use adb instead", Toast.LENGTH_LONG).show();
-            return;
-        }
+    /** Copies the logs to the shared Downloads folder, only when asked (Android 10+). Off the UI thread. */
+    private String export() {
+        if (Build.VERSION.SDK_INT < 29) return "Export needs Android 10; use adb instead";
         File[] files = CaptureService.logDir(this).listFiles();
         int n = 0;
         if (files != null) {
@@ -122,11 +137,10 @@ public class MainActivity extends Activity {
                     while ((r = in.read(buf)) > 0) out.write(buf, 0, r);
                     n++;
                 } catch (Exception e) {
-                    Toast.makeText(this, "Export failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                    return;
+                    return "Export failed: " + e.getMessage();
                 }
             }
         }
-        Toast.makeText(this, n + " log file(s) exported to Downloads", Toast.LENGTH_LONG).show();
+        return n + " log file(s) exported to Downloads";
     }
 }

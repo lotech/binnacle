@@ -97,6 +97,7 @@ public class CaptureService extends Service {
     @Override public void onCreate() {
         super.onCreate();
         running = true;
+        StateReceiver.announce(this, true);       // the dash shows a "recording" badge
         ht = new HandlerThread("cap"); ht.start();
         handler = new Handler(ht.getLooper()) {
             @Override public void handleMessage(Message msg) { record(msg); }
@@ -225,6 +226,7 @@ public class CaptureService extends Service {
 
     @Override public void onDestroy() {
         running = false;
+        try { StateReceiver.announce(this, false); } catch (Throwable ignored) {}
         try { unregister(); } catch (Throwable ignored) {}
         try { unbindService(conn); } catch (Throwable ignored) {}
         try { if (w != null) { w.flush(); w.close(); } } catch (Throwable ignored) {}

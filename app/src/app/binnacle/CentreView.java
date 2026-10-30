@@ -779,6 +779,10 @@ public class CentreView extends View {
         if (car.gear == CarState.GEAR_UNKNOWN) x = badge(c, x + 8, mode, Style.MUTED);
         String p = app.feedProblem();
         if (p != null) x = badge(c, x + 8, p.toUpperCase(), Style.BAD);   // before anything optional, so it is never pushed off
+        // a drive logger must never run unnoticed (the owner, 31 Oct): always shown, can't be turned off
+        if (app.oldLoggerInstalled()) x = badge(c, x + 8, "OLD LOGGER INSTALLED", Style.BAD);
+        if (app.loggerRecording()) x = badge(c, x + 8, "● LOGGER RECORDING", Style.BAD);
+        else if (app.loggerInstalled()) x = badge(c, x + 8, "LOGGER INSTALLED", Style.WARN);
         if (car.doors > 0) x = badge(c, x + 8, car.doorsText().toUpperCase(), Style.WARN);   // safety first
         if (app.isDemo()) badge(c, x + 8, "DEMO DATA", Style.WARN);
     }
