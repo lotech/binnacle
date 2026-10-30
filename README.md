@@ -79,9 +79,9 @@ Open `mockups/cluster_mockup.html` in a browser (it loads web fonts; no vendor a
 - The few things it does on the unit itself are pinned by the same guard: a fixed list of shell-user commands through the unit's own ADB (`LocalShell`: cycle Wi-Fi to end CarPlay, read/set Bluetooth auto-connect), and the camera decoder's two input-select nodes in `/sys/ziqi/camera`.
 
 ## Credits
-Car model: "Tesla 2018 Model 3" by Ameer Studio (https://sketchfab.com/uchiha.321abc), https://sketchfab.com/3d-models/tesla-2018-model-3-5ef9b845aaf44203b6d04e2c677e444f, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Modified: recoloured, mirrored for RHD, posed, rendered.
+3D car model by Ameer Studio (https://sketchfab.com/uchiha.321abc), source: https://sketchfab.com/3d-models/tesla-2018-model-3-5ef9b845aaf44203b6d04e2c677e444f, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Modified: recoloured, mirrored for RHD, posed, rendered.
 
 The in-app credit is under **Apps & settings → Advanced → About**.
 
 ## Licence
-Code: MIT (see `LICENSE`). Car renders in `app/assets/cars/`: CC BY 4.0, from "Tesla 2018 Model 3" by Ameer Studio, modified (see Credits). Not affiliated with Tesla, ZIQI or any head-unit vendor; "Tesla" and "Model 3" are used only to say which car this is for.
+Code: MIT (see `LICENSE`). Car renders in `app/assets/cars/`: CC BY 4.0, from a 3D model by Ameer Studio, modified (see Credits). Not affiliated with Tesla, ZIQI or any head-unit vendor; "Tesla" and "Model 3" are used only to say which car this is for.

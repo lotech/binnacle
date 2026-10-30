@@ -9,7 +9,7 @@ import java.io.File;
 import java.io.InputStream;
 
 /**
- * Car renders. The app bundles its own, rendered from a CC BY 4.0 model ("Tesla 2018 Model 3" by
+ * Car renders. The app bundles its own, rendered from a CC BY 4.0 model (by
  * Ameer Studio, see assets/cars/CREDITS.txt), in assets/cars/<hand>/teshila_car_<colour>/ (hand =
  * rhd or lhd: which side the steering wheel and driver's door are on) with the same file names and
  * layout as the stock ZIQI renders (the stock dash's own renders are never used). Door layers are

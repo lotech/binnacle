@@ -91,16 +91,12 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
      */
     private void askDriveSide() {
         final android.content.SharedPreferences p = app.prefs();
-        new android.app.AlertDialog.Builder(this)
-                .setTitle("Welcome to Binnacle")
-                .setMessage("Which side is your steering wheel on?")
-                .setPositiveButton("Right", new android.content.DialogInterface.OnClickListener() {
-                    @Override public void onClick(android.content.DialogInterface d, int w) { setDriveSide(p, "rhd", "right"); }
-                })
-                .setNegativeButton("Left", new android.content.DialogInterface.OnClickListener() {
-                    @Override public void onClick(android.content.DialogInterface d, int w) { setDriveSide(p, "lhd", "left"); }
-                })
-                .show();
+        BinnacleDialog.show(this, "Welcome to Binnacle", "Which side is your steering wheel on?",
+                new String[]{"Left", "Right"}, true, new BinnacleDialog.Choice() {
+                    @Override public void chosen(int index) {
+                        if (index == 0) setDriveSide(p, "lhd", "left"); else setDriveSide(p, "rhd", "right");
+                    }
+                });
     }
 
     private static void setDriveSide(android.content.SharedPreferences p, String side, String menu) {
@@ -253,11 +249,11 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
     /** Network icon tapped: offer the other mode (start CarPlay, or end it and rejoin home Wi-Fi). */
     @Override public void onNetIcon() {
         final boolean hotspot = apOn;
-        new android.app.AlertDialog.Builder(this)
-                .setTitle(hotspot ? "On CarPlay's hotspot" : "On home Wi-Fi")
-                .setMessage(hotspot ? "End CarPlay and switch back to home Wi-Fi?" : "Start CarPlay? The dash leaves home Wi-Fi while CarPlay is on.")
-                .setPositiveButton(hotspot ? "Switch to Wi-Fi" : "Start CarPlay", new android.content.DialogInterface.OnClickListener() {
-                    @Override public void onClick(android.content.DialogInterface d, int w) {
+        BinnacleDialog.show(this, hotspot ? "On CarPlay's hotspot" : "On home Wi-Fi",
+                hotspot ? "End CarPlay and switch back to home Wi-Fi?" : "Start CarPlay? The dash leaves home Wi-Fi while CarPlay is on.",
+                new String[]{"Cancel", hotspot ? "Switch to Wi-Fi" : "Start CarPlay"}, true, new BinnacleDialog.Choice() {
+                    @Override public void chosen(int index) {
+                        if (index != 1) return;
                         if (!hotspot) { Launch.phone(DashActivity.this); return; }
                         new Thread(new Runnable() {
                             @Override public void run() {
@@ -271,9 +267,7 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
                             }
                         }, "local-shell").start();
                     }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
+                });
     }
 
     @Override protected void onStop() {
