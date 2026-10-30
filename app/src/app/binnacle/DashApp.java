@@ -86,6 +86,58 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         rainbowRoad = prefs.getBoolean("autopilot_rainbow", false);
         startFeed();
         startCompass();
+        watchLogger();
+    }
+
+    // ---- the optional drive logger must never run unnoticed: the dash always shows a badge ----
+
+    /** onCarChanged code: a logger was installed/removed or started/stopped recording. */
+    public static final int LOGGER_CHANGED = -5;
+    static final String LOGGER_PKG = "app.binnacle.logger", OLD_LOGGER_PKG = "com.lotech.tesladash";
+    private static final String LOGGER_PERMISSION = "app.binnacle.permission.CONTROL_LOGGER";
+    private boolean loggerInstalled, oldLoggerInstalled, loggerRecording;
+
+    /** A logger app is installed (this one or the old one that also recorded location). */
+    public boolean loggerInstalled() { return loggerInstalled; }
+    public boolean oldLoggerInstalled() { return oldLoggerInstalled; }
+    /** The logger reported that it is recording. */
+    public boolean loggerRecording() { return loggerRecording; }
+
+    private void watchLogger() {
+        android.content.IntentFilter pkgs = new android.content.IntentFilter();
+        pkgs.addAction(android.content.Intent.ACTION_PACKAGE_ADDED);
+        pkgs.addAction(android.content.Intent.ACTION_PACKAGE_REMOVED);
+        pkgs.addAction(android.content.Intent.ACTION_PACKAGE_REPLACED);
+        pkgs.addDataScheme("package");
+        registerReceiver(new android.content.BroadcastReceiver() {
+            @Override public void onReceive(android.content.Context c, android.content.Intent i) { checkLogger(); }
+        }, pkgs);
+        // only the logger (same signing key) can send its state
+        registerReceiver(new android.content.BroadcastReceiver() {
+            @Override public void onReceive(android.content.Context c, android.content.Intent i) {
+                loggerRecording = i.getBooleanExtra("running", false);
+                for (Listener l : listeners) l.onCarChanged(LOGGER_CHANGED);
+            }
+        }, new android.content.IntentFilter("app.binnacle.logger.STATE"), LOGGER_PERMISSION, null);
+        checkLogger();
+    }
+
+    /** Which loggers are installed; asks the current one whether it is recording. */
+    void checkLogger() {
+        loggerInstalled = installed(LOGGER_PKG);
+        oldLoggerInstalled = installed(OLD_LOGGER_PKG);
+        if (!loggerInstalled) loggerRecording = false;
+        else sendBroadcast(new android.content.Intent("app.binnacle.logger.QUERY").setPackage(LOGGER_PKG), LOGGER_PERMISSION);
+        for (Listener l : listeners) l.onCarChanged(LOGGER_CHANGED);
+    }
+
+    private boolean installed(String pkg) {
+        try {
+            getPackageManager().getPackageInfo(pkg, 0);
+            return true;
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return false;
+        }
     }
 
     /** onCarChanged code: a car-picture pack finished downloading (or failed); screens showing it refresh. */

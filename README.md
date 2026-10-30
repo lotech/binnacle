@@ -42,7 +42,7 @@ On a ship, the binnacle is the stand in front of the helm that holds the compass
 ## Status
 In daily use on the owner's car since 29 Oct 2026, as the unit's Home app (it replaces the stock dash; the stock launcher stays installed as the fallback).
 - ✅ Reverse-engineered the stock CAN data interface and built a **field map** (`docs/FIELD_MAP.md`).
-- ✅ A read-only **capture tool** (`capture/`) that subscribes to the stock CAN service and logs every field, plus GPS while driving.
+- ✅ An optional read-only **logger** (`capture/`), a developer tool that records the car data feed. It never records location, isn't installed by default, and is only started by the dash if you opt in.
 - ✅ The **dash app** (`app/`): speed, gear, lights, power/regen, battery % (decoded, see below), tyres, parking sensors, doors, Autopilot, light/dark/auto theme, forward camera inside the dash, CarPlay start/end. See `app/README.md`.
 - 🟡 Still open: split-screen CarPlay (ZLink draws at the wrong width), the car's Bluetooth reconnecting to the unit by itself, a phone-call/mic test, and the logger restarting itself after car sleep.
 
@@ -50,7 +50,7 @@ In daily use on the owner's car since 29 Oct 2026, as the unit's Home app (it re
 | Folder | What |
 |---|---|
 | `app/` | The replacement read-only dash app (`app.binnacle`) |
-| `capture/` | `BinnacleLogger` — a tiny read-only app that subscribes to the stock CAN service (`com.xbs.canapp`) and logs every field to a file; used to derive the field map |
+| `capture/` | Optional developer tool: Binnacle logger, a separate read-only app that records the car data feed (no location) to its private storage; used to derive the field map |
 | `mockups/` | HTML mockups of the dash layout — **own artwork only**, no vendor assets |
 | `docs/` | `FIELD_MAP.md` (decoded CAN fields) and the ADB access guide |
 | `app/tests/` | Plain-Java tests (tyre pressure, battery decoding), run by `app/build.sh` |
@@ -59,15 +59,16 @@ In daily use on the owner's car since 29 Oct 2026, as the unit's Home app (it re
 ## Binnacle Log tool — build & install
 This was an important part of the project to understand all the information coming from the Dashes MCU and the CANBUS. It is **NOT** installed by default and must be installed manually via ADB. When installed it displays an obvious icon to indicate it is logging. I care about privacy and security so if installed an icon is displayed to indicate it is logging. This is a simple tool but record ALL the data for the last 7 days and so should be considered not something you would want unless you want to help the project.
 
+It never records location. Logs stay in the logger's own private storage (not `/sdcard`), and uninstalling it deletes them all. The dash only starts it if you turn on Apps & settings → Advanced → **Drive logger: start with the dash**. While it's installed, the dash shows an eye beside the Wi-Fi icon and a badge in the centre window, both red while it's recording. Details: `capture/README.md`.
+
 No Gradle required; it builds with the Android SDK command-line tools (`javac` → `d8` → `aapt2` → `apksigner`), or import `capture/` into Android Studio. Then:
 ```
 adb connect <unit-ip>:5555
-adb install -r BinnacleLogger.apk
-# open "Binnacle logger" on the unit; it logs to:
-#   /sdcard/Android/data/app.binnacle.logger/files/binnacle_log.txt
-adb pull /sdcard/Android/data/app.binnacle.logger/files/binnacle_log.txt
+adb install -r capture/build/BinnacleLogger.apk
+# open "Binnacle logger" on the unit and tap Start recording;
+# "Export logs to Downloads" copies the logs out when you want them
 ```
-It is **read-only** (subscribe + log only). Undo: `adb uninstall app.binnacle.logger`.
+It is **read-only** (subscribe + log only). Undo: `adb uninstall app.binnacle.logger`, or Advanced → Remove drive logger in Binnacle.
 
 ## Mockups
 Open `mockups/cluster_mockup.html` in a browser (it loads web fonts; no vendor art). `mockups/cluster_mockup_renders.html` is the same mockup using the bundled car renders from `app/assets/cars/`.

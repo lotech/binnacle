@@ -126,6 +126,7 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
      * starts. Does nothing if the logger isn't installed. Receive-only like the dash.
      */
     private void startLogger() {
+        if (!app.prefs().getBoolean("logger_autostart", false)) return;   // opt-in only (Advanced -> Drive logger)
         try {
             android.content.Intent i = new android.content.Intent().setComponent(
                     new android.content.ComponentName("app.binnacle.logger", "app.binnacle.logger.CaptureService"));
@@ -138,6 +139,7 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
     @Override protected void onStart() {
         super.onStart();
         startLogger();
+        app.checkLogger();                  // the logger badge is always current when the dash shows
         app.startCompass();                 // no-op once running; picks up a location grant made since
         // the theme changed while we were stopped (e.g. set in Apps & settings): rebuild in it
         if (lightBuilt != Style.light) { recreate(); return; }
@@ -328,6 +330,10 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
             case 2:
             case DashApp.HEADING_CHANGED:      // GPS compass, top right of the centre window
                 centre.invalidate();
+                break;
+            case DashApp.LOGGER_CHANGED:       // logger badge (centre) and eye (beside the Wi-Fi icon)
+                centre.invalidate();
+                right.invalidate();
                 break;
             default:
                 followFrontCam();                  // e.g. a feed reset clears the flag
