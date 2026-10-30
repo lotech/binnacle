@@ -13,9 +13,10 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * Downloads car colour packs (renders for one colour and driving side) from this project's GitHub
- * release, over Wi-Fi, into the app's own files dir where CarArt looks first:
- * files/<hand>/teshila_car_<colour>/. Only silver is bundled in the APK.
+ * Downloads car colour packs (renders for one model, colour and driving side) from this project's
+ * GitHub release, over Wi-Fi, into the app's own files dir where CarArt looks first:
+ * files/<hand>/teshila_car_<colour>/. "hand" names the set: rhd / lhd for the Model 3, y-rhd /
+ * y-lhd for the Model Y (see HANDS). Only the Model 3 in silver is bundled in the APK.
  *
  * Fixed source: RELEASE_BASE + "binnacle-cars-<hand>-<colour>.zip" (the guard pins both), HTTPS
  * only, download only (GET). Entries are unpacked only if they stay inside the pack folder and are
@@ -24,7 +25,8 @@ import java.util.zip.ZipInputStream;
  */
 final class CarPacks {
     static final String RELEASE_BASE = "https://github.com/lotech/binnacle/releases/download/cars-v1/";
-    static final String[] HANDS = {"rhd", "lhd"};
+    /** Model 3 right / left-hand drive, then Model Y right / left. */
+    static final String[] HANDS = {"rhd", "lhd", "y-rhd", "y-lhd"};
     /** Same order as the car's carcolor value. */
     static final String[] COLOURS = {"white", "red", "blue", "black", "silver"};
     private static final long MAX_BYTES = 64L * 1024 * 1024;

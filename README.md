@@ -13,7 +13,7 @@ On a ship, the binnacle is the stand in front of the helm that holds the compass
 
 ## Features
 - **Live car data, never written to:** speed, gear (R P N D), speed-limit sign, indicators and lights, power and regen bar, tyre pressures (psi or bar), parking sensors, doors, boot and frunk, outside temperature, odometer.
-- **Your car, in 3D:** Shows whichever door is open, opens it, and highlights the boot and frunk. In Drive it sits on a moving road with headlight glow, and on Autopilot the lane turns blue (or a rainbow road, if you like). Supports Left and Right Hand Drive Cars and the original Dashes colour options. Different colours are available via the app and downloaded from the repo.
+- **Your car, in 3D:** Shows whichever door is open, opens it, and highlights the boot and frunk. In Drive it sits on a moving road with headlight glow, and on Autopilot the lane turns blue (or a rainbow road, if you like). Model 3 or Model Y (asked on first start), left- or right-hand drive, in the original dash's colour options. Different colours are available via the app and downloaded from the repo.
 - **Real battery %:** decoded from a field the stock software mislabels (see below), with a range estimate and charging animation.
 - **Efficiency:** Wh/km over the last 5 km, a 15-minute power and regen graph, and this drive's totals.
 - **GPS compass**
@@ -81,7 +81,9 @@ Open `mockups/cluster_mockup.html` in a browser (it loads web fonts; no vendor a
 ## Credits
 3D car model by Ameer Studio (https://sketchfab.com/uchiha.321abc), source: https://sketchfab.com/3d-models/tesla-2018-model-3-5ef9b845aaf44203b6d04e2c677e444f, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Modified: recoloured, mirrored for RHD, posed, rendered.
 
+Model Y renders (downloaded from the release, not bundled): based on "2021 Tesla Model Y" (https://sketchfab.com/3d-models/2021-tesla-model-y-59e2ead369984b1a85c800ff6cf6789d) by tonielpro520 (https://sketchfab.com/tonielpro520), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Modified: recoloured, posed, rendered.
+
 The in-app credit is under **Apps & settings → Advanced → About**.
 
 ## Licence
-Code: MIT (see `LICENSE`). Car renders in `app/assets/cars/`: CC BY 4.0, from a 3D model by Ameer Studio, modified (see Credits). Not affiliated with Tesla, ZIQI or any head-unit vendor; "Tesla" and "Model 3" are used only to say which car this is for.
+Code: MIT (see `LICENSE`). Car renders in `app/assets/cars/` and the release packs: CC BY 4.0, from 3D models by Ameer Studio (Model 3) and tonielpro520 (Model Y), modified (see Credits). Not affiliated with Tesla, ZIQI or any head-unit vendor; "Tesla", "Model 3" and "Model Y" are used only to say which car this is for.

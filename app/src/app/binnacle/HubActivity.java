@@ -168,11 +168,11 @@ public class HubActivity extends Activity {
 
     private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
 
-    /** Driving side changed: rebuild the Display tab so Car pictures shows (and fetches) that side. */
+    /** Car model or driving side changed: rebuild the Display tab so Car pictures shows (and fetches) that set. */
     private final SharedPreferences.OnSharedPreferenceChangeListener sideListener =
             new SharedPreferences.OnSharedPreferenceChangeListener() {
                 @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
-                    if ("drive_side".equals(key) && tab == 1) showTab(1);
+                    if (("drive_side".equals(key) || "car_model".equals(key)) && tab == 1) showTab(1);
                 }
             };
 
@@ -219,6 +219,8 @@ public class HubActivity extends Activity {
                             "End CarPlay", LocalShell.Command.END_CARPLAY),
                     choiceCard("Tyre pressure", null, "tyre_unit", "psi",
                             new String[]{"psi", "bar"}, new String[]{"psi", "bar"}),
+                    choiceCard("Car model", "Which car pictures to show", "car_model", "3",
+                            new String[]{"3", "y"}, new String[]{"Model 3", "Model Y"}),
                     choiceCard("Driving side", "Which side the steering wheel is on (car pictures)", "drive_side", "rhd",
                             new String[]{"rhd", "lhd"}, new String[]{"Right", "Left"}),
                     carPicturesCard(),
@@ -235,8 +237,10 @@ public class HubActivity extends Activity {
                     switchCard("Demo data", "Simulated drive instead of the car feed", "demo", false),
                     loggerCards(),
                     infoCard("About", "Binnacle, a read-only dash for this unit.\n"
-                            + "3D car model by Ameer Studio (Sketchfab), CC BY 4.0, modified "
-                            + "(recoloured, mirrored for right-hand drive, posed, rendered)."))); break;
+                            + "Model 3: 3D car model by Ameer Studio (Sketchfab), CC BY 4.0, modified "
+                            + "(recoloured, mirrored for right-hand drive, posed, rendered).\n"
+                            + "Model Y: based on \"2021 Tesla Model Y\" by tonielpro520 (Sketchfab), CC BY 4.0, modified "
+                            + "(recoloured, posed, rendered)."))); break;
         }
         if (keepScroll > 0 && content.getChildCount() > 0) {
             final View sv = content.getChildAt(0);
@@ -567,9 +571,9 @@ public class HubActivity extends Activity {
             return card;
         }
         final String colour = c >= 0 && c < CarPacks.COLOURS.length ? CarPacks.COLOURS[c] : "silver";
-        final String hand = app.leftHandDrive() ? "lhd" : "rhd";   // the tab rebuilds when the side changes
-        String what = Character.toUpperCase(colour.charAt(0)) + colour.substring(1)
-                + (hand.equals("lhd") ? ", left-hand drive" : ", right-hand drive");
+        final String hand = app.artSet();   // the tab rebuilds when the model or side changes
+        String what = (app.modelY() ? "Model Y, " : "Model 3, ") + colour
+                + (hand.endsWith("lhd") ? ", left-hand drive" : ", right-hand drive");
         final LinearLayout card = card("Car pictures", what);
         final TextView b = chip("…");
         final Runnable refresh = new Runnable() {

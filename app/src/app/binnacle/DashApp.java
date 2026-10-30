@@ -267,8 +267,9 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
      */
     public CarArt art() {
         final int colour = car.carColour;
-        final boolean lhd = leftHandDrive();
-        final int key = colour * 2 + (lhd ? 1 : 0);   // a colour or driving-side change reloads
+        final String hand = artSet();
+        final int key = colour * 8 + java.util.Arrays.asList(CarPacks.HANDS).indexOf(hand);   // a colour, model or side change reloads
+        fetchModelYPack(colour, hand);
         if (art != null && artColour == key) return art;
         if (!artLoading) {
             artLoading = true;
@@ -276,7 +277,7 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
                 @Override public void run() {
                     CarArt a;
                     try {
-                        a = CarArt.load(DashApp.this, colour, lhd);
+                        a = CarArt.load(DashApp.this, colour, hand);
                     } catch (Throwable t) {
                         a = CarArt.NONE;
                     }
@@ -297,6 +298,45 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
 
     /** Driving side (Display → Driving side): left-hand drive uses the lhd car renders. */
     public boolean leftHandDrive() { return "lhd".equals(prefs.getString("drive_side", "rhd")); }
+
+    /** Car model (first start, or Display → Car model): "3" (default) or "y". */
+    public boolean modelY() { return "y".equals(prefs.getString("car_model", "3")); }
+
+    /** The render set for the model and driving side (CarPacks.HANDS): rhd, lhd, y-rhd or y-lhd. */
+    public String artSet() { return (modelY() ? "y-" : "") + (leftHandDrive() ? "lhd" : "rhd"); }
+
+    /** Model Y packs already tried this run ("hand/colour"), so a failed download isn't retried in a loop. */
+    private final java.util.Set<String> packTried = new java.util.HashSet<>();
+
+    /**
+     * Nothing is bundled for the Model Y, so choosing it (the choice says the pictures download)
+     * fetches the pack for the car's colour and side from the project's release once the car has
+     * reported its colour; until then, or if it fails, the Model 3 is shown. Tried once per run;
+     * Apps & settings → Car → Car pictures retries by hand.
+     */
+    private void fetchModelYPack(int colour, final String hand) {
+        if (!hand.startsWith("y-") || colour < 0 || colour >= CarPacks.COLOURS.length) return;
+        final String c = CarPacks.COLOURS[colour];
+        if (!packTried.add(hand + "/" + c) || CarPacks.downloaded(this, hand, c) || CarPacks.downloading(hand, c)) return;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                boolean ok;
+                try {
+                    CarPacks.download(DashApp.this, hand, c, null);
+                    ok = true;
+                } catch (Exception e) {
+                    ok = false;
+                }
+                final boolean got = ok;
+                main.post(new Runnable() {
+                    @Override public void run() {
+                        if (got) reloadArt();
+                        notifyChanged(PACKS_CHANGED);
+                    }
+                });
+            }
+        }, "car-pack").start();
+    }
 
     /** Forget the renders and load them again (e.g. the driving side changed). */
     public void reloadArt() {
@@ -320,7 +360,7 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         if ("text_size".equals(key)) applyTextSize();
         if ("autopilot_rainbow".equals(key)) rainbowRoad = prefs.getBoolean(key, false);
         if ("theme".equals(key)) updateTheme(true);
-        if ("drive_side".equals(key)) reloadArt();
+        if ("drive_side".equals(key) || "car_model".equals(key)) reloadArt();
         for (Listener l : listeners) l.onCarChanged(-1);
     }
 
