@@ -81,17 +81,36 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
         root.addView(right, new LinearLayout.LayoutParams(0, -1, Style.SIDE_W));
         setContentView(root);
         // no storage permission: the car renders are bundled (or in this app's own files dir)
-        if (!app.prefs().contains("drive_side")) askDriveSide();
+        firstStartQuestions();
     }
 
     /**
-     * First start: which side the steering wheel is on (car renders, and the settings menu goes on
-     * the driver's side unless already chosen). Asked again next start if dismissed; changeable
-     * later in Apps & settings -> Display -> Driving side.
+     * First start: which car (Model 3 or Y), then which side the steering wheel is on. Each is asked
+     * again next start if dismissed, and changeable later in Apps & settings -> Display.
+     */
+    private void firstStartQuestions() {
+        if (!app.prefs().contains("car_model")) askCarModel();
+        else if (!app.prefs().contains("drive_side")) askDriveSide();
+    }
+
+    /** Model Y pictures aren't bundled: picking it downloads them (DashApp.fetchModelYPack). */
+    private void askCarModel() {
+        BinnacleDialog.show(this, "Welcome to Binnacle", "Which car is this?\nModel Y pictures download from GitHub (about 10 MB).",
+                new String[]{"Model 3", "Model Y"}, true, new BinnacleDialog.Choice() {
+                    @Override public void chosen(int index) {
+                        app.prefs().edit().putString("car_model", index == 1 ? "y" : "3").apply();
+                        if (!app.prefs().contains("drive_side")) askDriveSide();
+                    }
+                });
+    }
+
+    /**
+     * Which side the steering wheel is on (car renders, and the settings menu goes on the driver's
+     * side unless already chosen).
      */
     private void askDriveSide() {
         final android.content.SharedPreferences p = app.prefs();
-        BinnacleDialog.show(this, "Welcome to Binnacle", "Which side is your steering wheel on?",
+        BinnacleDialog.show(this, "Driving side", "Which side is your steering wheel on?",
                 new String[]{"Left", "Right"}, true, new BinnacleDialog.Choice() {
                     @Override public void chosen(int index) {
                         if (index == 0) setDriveSide(p, "lhd", "left"); else setDriveSide(p, "rhd", "right");

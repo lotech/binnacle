@@ -11,7 +11,8 @@ import java.io.InputStream;
 /**
  * Car renders. The app bundles its own, rendered from a CC BY 4.0 model (by
  * Ameer Studio, see assets/cars/CREDITS.txt), in assets/cars/<hand>/teshila_car_<colour>/ (hand =
- * rhd or lhd: which side the steering wheel and driver's door are on) with the same file names and
+ * rhd or lhd: which side the steering wheel and driver's door are on; y-rhd / y-lhd for a Model Y,
+ * downloaded only) with the same file names and
  * layout as the stock ZIQI renders (the stock dash's own renders are never used). Door layers are
  * named by their real side in both, so the door logic is the same either way.
  * Where to look, first match wins:
@@ -52,9 +53,19 @@ final class CarArt {
         this.top = top;
     }
 
-    static CarArt load(Context c, int carColour, boolean leftHandDrive) {
-        Source s = find(c, carColour, leftHandDrive ? "lhd" : "rhd");
-        if (s == null) s = find(c, carColour, leftHandDrive ? "rhd" : "lhd");
+    /**
+     * hand = the set to show (CarPacks.HANDS: rhd / lhd, or y-rhd / y-lhd for a Model Y). A Model Y
+     * without its pack (nothing is bundled for it) falls back to its other side, then to the
+     * Model 3, so there is always a car while the pack downloads.
+     */
+    static CarArt load(Context c, int carColour, String hand) {
+        boolean modelY = hand.startsWith("y-");
+        String side = modelY ? hand.substring(2) : hand;
+        String other = side.equals("lhd") ? "rhd" : "lhd";
+        Source s = find(c, carColour, hand);
+        if (s == null && modelY) s = find(c, carColour, "y-" + other);
+        if (s == null) s = find(c, carColour, side);
+        if (s == null) s = find(c, carColour, other);
         if (s == null) return NONE;
         return new CarArt(s,
                 s.decode("car/teshila_car_bg(0).png"),
