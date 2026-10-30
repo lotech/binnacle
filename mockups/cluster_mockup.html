@@ -1,0 +1,290 @@
+<title>Model 3 Cluster</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a fixed 1920x720 cluster "stage" scaled to the viewport. Primary layout is the
+   "dream" — a centre window (CarPlay, or the forward camera when active) flanked by our own
+   left/right info panels. Two alternates (Centred, Split). Only CAN fields confirmed on the unit. */
+:root{
+  --bg:#07090d; --panel:#0e131b; --panel-2:#141b25; --screen:#05070b;
+  --line:#222c39; --fg:#eef3f8; --muted:#8793a4; --dim:#505b6a;
+  --accent:#36b9ff; --good:#37e0a0; --warn:#ffb84d; --bad:#ff5a52;
+  color-scheme:dark;
+  --disp:"Roboto Condensed","Roboto",ui-sans-serif,system-ui,sans-serif;
+  --body:"Roboto",ui-sans-serif,system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:radial-gradient(1200px 520px at 50% -12%,#0d1420,var(--bg) 62%);
+  color:var(--fg);font-family:var(--body);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  padding-block:18px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  overflow-x:hidden}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;color:var(--muted);font-size:13px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{appearance:none;border:0;background:transparent;color:var(--muted);font:inherit;padding:7px 15px;cursor:pointer;font-weight:600;letter-spacing:.02em}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#04121c}
+.lbl{font-family:var(--body);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.note{font-size:12px;color:var(--dim)}
+.tnum{font-variant-numeric:tabular-nums}
+
+.frame{width:100%;max-width:1920px}
+.stage-wrap{position:relative;width:100%;aspect-ratio:1920/720;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 30px 80px -30px #000, inset 0 0 0 1px #ffffff08}
+.stage{position:absolute;top:0;left:0;width:1920px;height:720px;transform-origin:top left;background:var(--bg);font-family:var(--disp)}
+
+/* shared atoms */
+.gearsel{display:flex;gap:14px;font-weight:700;font-size:30px;color:var(--dim);letter-spacing:.08em}
+.gearsel b{color:var(--fg)} .gearsel .on{color:var(--accent)}
+.limit{width:104px;height:104px;border-radius:50%;background:#fff;border:8px solid var(--bad);display:flex;align-items:center;justify-content:center}
+.limit span{font-weight:800;font-size:42px;color:#111}
+.turn{width:40px;height:40px;color:var(--dim);display:inline-flex}
+.turn.act{color:var(--warn)}
+.turn svg{width:100%;height:100%}
+@media (prefers-reduced-motion:no-preference){.turn.act{animation:blink 1s steps(1) infinite}}
+@keyframes blink{50%{opacity:.16}}
+.bigspeed{font-weight:800;line-height:.86;letter-spacing:-.02em}
+.unit{font-family:var(--body);color:var(--muted);letter-spacing:.2em;text-transform:uppercase}
+
+.batt .cells{width:100%;height:34px;border:2px solid var(--line);border-radius:6px;padding:3px;display:flex;position:relative}
+.batt .cells::after{content:"";position:absolute;right:-7px;top:9px;width:5px;height:14px;background:var(--line);border-radius:0 2px 2px 0}
+.batt .fill{flex:0 0 77%;background:linear-gradient(90deg,var(--good),#2fb985);border-radius:3px}
+
+.carbox{position:relative;width:150px;height:250px;margin:0 auto}
+.carsil{position:absolute;inset:0;margin:auto;width:104px;height:224px;border:2px solid var(--line);border-radius:46px/62px;background:linear-gradient(180deg,#141b24,#0d131b)}
+.carsil::before{content:"";position:absolute;left:16px;right:16px;top:52px;bottom:68px;border:2px solid #202a36;border-radius:22px}
+.tp{position:absolute;display:flex;flex-direction:column;align-items:center}
+.tp b{font-weight:700;font-size:23px}.tp span{font-family:var(--body);font-size:10px;color:var(--muted)}
+.tp.fl{top:22px;left:-10px}.tp.fr{top:22px;right:-10px}.tp.rl{bottom:28px;left:-10px}.tp.rr{bottom:28px;right:-10px}
+
+.app{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line);cursor:pointer;flex:1;min-width:0}
+.app .ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#04121c;flex:none}
+.app .nm{font-family:var(--body);font-size:12px;font-weight:600;white-space:nowrap}
+/* left-panel extras */
+.power .track{position:relative;height:16px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;margin-top:6px}
+.power .zero{position:absolute;left:38%;top:0;bottom:0;width:2px;background:var(--dim)}
+.power .pbar{position:absolute;top:0;bottom:0;left:38%;width:22%;background:linear-gradient(90deg,var(--warn),#ff8a3d);border-radius:0 6px 6px 0}
+.power .scale{display:flex;justify-content:space-between;margin-top:6px;font-family:var(--body);font-size:10px;color:var(--dim)}
+.temp{display:flex;justify-content:space-between;align-items:center}
+.temp .v{font-family:var(--disp);font-weight:700;font-size:24px}
+.ic.cp{background:#2ad15a}.ic.aa{background:#36b9ff}.ic.cam{background:#ffb84d}
+.rowlights{display:flex;gap:10px;color:var(--dim);font-size:22px}
+.rowlights .on{color:var(--good)}.rowlights .hi{color:var(--accent)}.rowlights .am{color:var(--warn)}
+
+/* ===================== DREAM (primary) ===================== */
+.vD{display:grid;grid-template-columns:330px 1fr 330px;height:100%}
+/* extra top padding keeps key readouts clear of the steering-wheel-obscured top corners */
+.vD .side{display:flex;flex-direction:column;padding:74px 24px 22px;gap:16px}
+.vD .side.l{border-right:1px solid var(--line)}
+.vD .side.r{border-left:1px solid var(--line)}
+.vD .mid{flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px}
+.vD .spd{display:flex;flex-direction:column;align-items:center;gap:0;margin-top:6px}
+.vD .spd .bigspeed{font-size:168px}
+.vD .spd .unit{font-size:16px;margin-top:-4px}
+.vD .turns{display:flex;justify-content:center;gap:34px;margin-top:4px}
+.vD .meta{display:flex;justify-content:space-between;align-items:center}
+.vD .gearwrap{display:flex;justify-content:center}
+.vD .centerwrap{padding:16px;display:flex;flex-direction:column;gap:10px;background:radial-gradient(640px 420px at 50% 0%,#0f1d2b,transparent 72%)}
+.vD .screen{flex:1;border-radius:16px;background:var(--screen);border:1px solid var(--line);position:relative;overflow:hidden}
+.vD .ctoggle{display:flex;justify-content:center}
+.vD .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.vD .bignum{font-weight:800;font-size:40px}
+.vD .est{font-family:var(--body);font-size:12px;color:var(--muted)}
+.vD .dock{display:flex;gap:10px}
+.vD .side.r{justify-content:flex-start}
+
+/* centre screen contents */
+.cp-face{position:absolute;inset:0;display:grid;grid-template-columns:84px 1fr;font-family:var(--body)}
+.cp-rail{background:#0b0f16;border-right:1px solid #1b2430;display:flex;flex-direction:column;align-items:center;gap:22px;padding-top:22px}
+.cp-rail i{width:40px;height:40px;border-radius:10px;background:#1a2330}
+.cp-rail i.g{background:#2ad15a}.cp-rail i.b{background:#36b9ff}
+.cp-map{position:relative;background:
+   radial-gradient(900px 400px at 70% 120%, #10361f 0%, transparent 60%),
+   linear-gradient(135deg,#0c1118,#0a1420)}
+.cp-road{position:absolute;left:-10%;right:-10%;top:40%;height:80px;background:linear-gradient(90deg,transparent,#24405f,transparent);transform:rotate(-8deg);border-radius:40px}
+.cp-road.b{top:62%;background:linear-gradient(90deg,transparent,#1b3350,transparent);transform:rotate(6deg)}
+.cp-card{position:absolute;left:22px;top:20px;background:#0f1722cc;border:1px solid #223047;border-radius:12px;padding:12px 16px;backdrop-filter:blur(2px)}
+.cp-card .d{font-family:var(--disp);font-weight:800;font-size:30px}
+.cp-np{position:absolute;right:20px;bottom:18px;display:flex;align-items:center;gap:12px;background:#0f1722cc;border:1px solid #223047;border-radius:12px;padding:10px 14px}
+.cp-np .art{width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#ff5a52,#ffb84d)}
+.cam-face{position:absolute;inset:0;background:
+   linear-gradient(180deg,#0a0f0c,#05211a 70%,#06130f);display:flex;align-items:flex-end;justify-content:center}
+.cam-face::before{content:"";position:absolute;inset:0;background:
+   repeating-linear-gradient(90deg,#ffffff0a 0 1px,transparent 1px 64px),
+   repeating-linear-gradient(0deg,#ffffff08 0 1px,transparent 1px 64px)}
+.cam-guides{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:62%;height:64%;
+   border-left:4px solid #37e0a0aa;border-right:4px solid #ffb84daa;border-bottom:none;
+   clip-path:polygon(18% 100%,82% 100%,62% 0,38% 0);}
+.cam-tag{position:absolute;top:14px;left:16px;font-family:var(--body);font-size:12px;letter-spacing:.18em;color:#8fe9c4;text-transform:uppercase}
+.badge{position:absolute;top:12px;right:14px;font-family:var(--body);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+
+/* ===================== ALTERNATES ===================== */
+.vA{display:grid;grid-template-columns:1fr auto 1fr;grid-template-rows:1fr auto;height:100%;padding:66px 52px 30px;gap:10px}
+.vA .leftcol{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start}
+.vA .centre{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.vA .rightcol{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end}
+.vA .bigspeed{font-size:190px}.vA .unit{font-size:19px;margin-top:-4px}
+.vA .turns{display:flex;gap:36px;align-items:center;margin-bottom:6px}
+.vA .dock{grid-column:1/-1;justify-self:center;display:flex;gap:12px;width:560px}
+.vA .est{font-family:var(--body);font-size:13px;color:var(--muted)}
+.vA .odo{font-family:var(--body);color:var(--muted);font-size:14px}
+
+.vB{display:grid;grid-template-columns:1.2fr 1fr;height:100%}
+.vB .gauge{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;border-right:1px solid var(--line)}
+.vB .bigspeed{font-size:220px}.vB .unit{font-size:18px}
+.vB .toprow{position:absolute;top:64px;left:30px;right:30px;display:flex;justify-content:space-between;align-items:flex-start}
+.vB .turns{position:absolute;bottom:36px;display:flex;gap:110px}
+.vB .side{display:flex;flex-direction:column;padding:30px;gap:14px}
+.vB .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.vB .srow{display:flex;justify-content:space-between;align-items:center}
+.vB .bignum{font-weight:800;font-size:34px}
+.vB .est{font-family:var(--body);font-size:12px;color:var(--muted)}
+.vB .dock{display:flex;gap:10px;margin-top:auto}
+</style>
+
+<div class="toolbar">
+  <span class="lbl">Layout</span>
+  <span class="seg" role="group" aria-label="Layout">
+    <button id="bD" aria-pressed="true">Dream</button>
+    <button id="bA" aria-pressed="false">Centred</button>
+    <button id="bB" aria-pressed="false">Split</button>
+  </span>
+  <span class="note">1920×720 · sample values from the live capture · centre window is a concept of CarPlay / camera</span>
+</div>
+
+<div class="frame"><div class="stage-wrap"><div class="stage" id="stage">
+
+  <!-- ========= DREAM ========= -->
+  <div class="vD" id="viewD">
+    <div class="side l">
+      <div class="rowlights" title="headlights · high beam · autopilot · warning · charge">
+        <span class="on">◉</span><span class="hi">≡</span><span class="hi">⊚</span><span class="am">⚠</span><span>⚡</span>
+      </div>
+      <div class="mid">
+        <div style="display:flex;justify-content:center"><div class="gearsel"><b class="dim">P</b><b>R</b><b>N</b><b class="on">D</b></div></div>
+        <div class="spd"><div class="bigspeed tnum">41</div><div class="unit">km / h</div></div>
+        <div class="turns"><span class="turn l"><svg viewBox="0 0 32 32"><path d="M22 7 L9 16 L22 25 Z" fill="currentColor" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/></svg></span><span class="turn r act"><svg viewBox="0 0 32 32"><path d="M10 7 L23 16 L10 25 Z" fill="currentColor" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/></svg></span></div>
+        <div style="display:flex;justify-content:center"><div class="limit"><span class="tnum">50</span></div></div>
+      </div>
+      <div class="power">
+        <div class="lbl">Power</div>
+        <div class="track"><div class="zero"></div><div class="pbar"></div></div>
+        <div class="scale"><span>Regen</span><span>0</span><span>Power</span></div>
+      </div>
+    </div>
+
+    <div class="centerwrap">
+      <div class="ctoggle"><span class="seg" role="group" aria-label="Centre content">
+        <button id="cCP" aria-pressed="true">CarPlay</button>
+        <button id="cCAM" aria-pressed="false">Camera</button>
+      </span></div>
+      <div class="screen" id="screen">
+        <!-- CarPlay face -->
+        <div class="cp-face" id="cpFace">
+          <div class="cp-rail"><i class="g"></i><i class="b"></i><i></i><i></i></div>
+          <div class="cp-map">
+            <div class="cp-road"></div><div class="cp-road b"></div>
+            <div class="cp-card"><div class="est" style="color:#9fb3cc">In 300 m</div><div class="d">Turn right</div><div class="est" style="color:#9fb3cc">Marine Pde</div></div>
+            <div class="cp-np"><div class="art"></div><div><div style="font-size:13px;font-weight:600">On a Night Like This</div><div class="est">Dave Dobbyn</div></div></div>
+            <div class="badge">CarPlay</div>
+          </div>
+        </div>
+        <!-- Camera face -->
+        <div class="cam-face" id="camFace" hidden>
+          <span class="cam-tag">Forward camera</span><div class="cam-guides"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="side r">
+      <div class="temp" style="justify-content:flex-start;gap:10px"><div class="v tnum">18°C</div><div class="lbl">Outside</div></div>
+      <div class="tile">
+        <div class="meta"><div class="lbl">Battery</div><div class="bignum tnum">77<span style="font-size:18px">%</span></div></div>
+        <div class="batt" style="margin-top:10px"><div class="cells"><div class="fill"></div></div></div>
+        <div class="est" style="margin-top:8px">≈ 254 km est. · 18°C</div>
+      </div>
+      <div class="tile">
+        <div class="lbl" style="margin-bottom:6px">Tyres · psi</div>
+        <div class="carbox" style="height:190px;transform:scale(.8);transform-origin:top center">
+          <div class="carsil"></div>
+          <div class="tp fl"><b class="tnum">42</b><span>FL</span></div><div class="tp fr"><b class="tnum">42</b><span>FR</span></div>
+          <div class="tp rl"><b class="tnum">41</b><span>RL</span></div><div class="tp rr"><b class="tnum">43</b><span>RR</span></div>
+        </div>
+      </div>
+      <div class="tile meta"><div><div class="lbl">Odometer</div><div class="tnum" style="font-size:22px;margin-top:4px">54,723<span style="font-size:12px;color:var(--muted)"> km</span></div></div>
+        <div style="text-align:right"><div class="lbl">Doors</div><div class="est" style="margin-top:6px">All closed</div></div></div>
+      <div class="dock" style="margin-top:auto">
+        <div class="app"><div class="ic cp">CP</div><div class="nm">CarPlay</div></div>
+        <div class="app"><div class="ic aa">AA</div><div class="nm">Auto</div></div>
+        <div class="app"><div class="ic cam">▶</div><div class="nm">Cam</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========= CENTRED ========= -->
+  <div class="vA" id="viewA" hidden>
+    <div class="leftcol">
+      <div><div class="lbl">Battery</div>
+        <div class="batt" style="width:210px;margin-top:10px"><div class="cells"><div class="fill"></div></div></div>
+        <div style="font-weight:800;font-size:34px;margin-top:8px" class="tnum">77%</div>
+        <div class="est">≈ 254 km est. · 18°C</div></div>
+      <div class="odo tnum">ODO 54,723 km</div>
+    </div>
+    <div class="centre">
+      <div class="turns"><span class="turn l"><svg viewBox="0 0 32 32"><path d="M22 7 L9 16 L22 25 Z" fill="currentColor" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/></svg></span>
+        <div style="text-align:center"><div class="bigspeed tnum">41</div><div class="unit">km / h</div></div>
+        <span class="turn r act"><svg viewBox="0 0 32 32"><path d="M10 7 L23 16 L10 25 Z" fill="currentColor" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/></svg></span></div>
+      <div class="gearsel"><b class="dim">P</b><b>R</b><b>N</b><b class="on">D</b></div>
+    </div>
+    <div class="rightcol">
+      <div class="limit"><span class="tnum">50</span></div>
+      <div class="carbox"><div class="carsil"></div>
+        <div class="tp fl"><b class="tnum">42</b><span>FL psi</span></div><div class="tp fr"><b class="tnum">42</b><span>FR psi</span></div>
+        <div class="tp rl"><b class="tnum">41</b><span>RL psi</span></div><div class="tp rr"><b class="tnum">43</b><span>RR psi</span></div></div>
+    </div>
+    <div class="dock">
+      <div class="app"><div class="ic cp">CP</div><div class="nm">CarPlay</div></div>
+      <div class="app"><div class="ic aa">AA</div><div class="nm">Android Auto</div></div>
+      <div class="app"><div class="ic cam">▶</div><div class="nm">Camera</div></div>
+    </div>
+  </div>
+
+  <!-- ========= SPLIT ========= -->
+  <div class="vB" id="viewB" hidden>
+    <div class="gauge">
+      <div class="toprow"><div class="gearsel"><b class="dim">P</b><b>R</b><b>N</b><b class="on">D</b></div><div class="limit"><span class="tnum">50</span></div></div>
+      <div class="bigspeed tnum">41</div><div class="unit">km / h</div>
+      <div class="turns"><span class="turn l"><svg viewBox="0 0 32 32"><path d="M22 7 L9 16 L22 25 Z" fill="currentColor" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/></svg></span><span class="turn r act"><svg viewBox="0 0 32 32"><path d="M10 7 L23 16 L10 25 Z" fill="currentColor" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/></svg></span></div>
+    </div>
+    <div class="side">
+      <div class="tile srow"><div class="lbl">Battery</div><div><div class="bignum tnum" style="text-align:right">77%</div><div class="est">≈ 254 km est.</div></div></div>
+      <div class="tile"><div class="lbl" style="margin-bottom:8px">Tyres · psi</div>
+        <div class="carbox" style="height:170px;transform:scale(.7);transform-origin:top center"><div class="carsil"></div>
+          <div class="tp fl"><b class="tnum">42</b><span>FL</span></div><div class="tp fr"><b class="tnum">42</b><span>FR</span></div>
+          <div class="tp rl"><b class="tnum">41</b><span>RL</span></div><div class="tp rr"><b class="tnum">43</b><span>RR</span></div></div></div>
+      <div class="tile srow"><div><div class="lbl">Odometer</div><div class="tnum" style="font-size:22px;margin-top:4px">54,723 km</div></div></div>
+      <div class="dock">
+        <div class="app"><div class="ic cp">CP</div><div class="nm">CarPlay</div></div>
+        <div class="app"><div class="ic aa">AA</div><div class="nm">Auto</div></div>
+        <div class="app"><div class="ic cam">▶</div><div class="nm">Cam</div></div>
+      </div>
+    </div>
+  </div>
+
+</div></div></div>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&display=swap">
+<script>
+(function(){
+  var stage=document.getElementById('stage'),wrap=stage.parentElement;
+  function fit(){stage.style.transform='scale('+(wrap.clientWidth/1920)+')';}
+  new ResizeObserver(fit).observe(wrap);fit();addEventListener('resize',fit);
+  var views={D:'viewD',A:'viewA',B:'viewB'},btns={D:'bD',A:'bA',B:'bB'};
+  function show(k){for(var x in views){var v=document.getElementById(views[x]),b=document.getElementById(btns[x]);v.hidden=(x!==k);b.setAttribute('aria-pressed',x===k);}}
+  for(var x in btns){(function(k){document.getElementById(btns[k]).onclick=function(){show(k);};})(x);}
+  // centre content toggle
+  var cp=document.getElementById('cpFace'),cam=document.getElementById('camFace'),
+      bcp=document.getElementById('cCP'),bcam=document.getElementById('cCAM');
+  function centre(isCam){cam.hidden=!isCam;cp.hidden=isCam;bcam.setAttribute('aria-pressed',isCam);bcp.setAttribute('aria-pressed',!isCam);}
+  bcp.onclick=function(){centre(false);};bcam.onclick=function(){centre(true);};
+})();
+</script>

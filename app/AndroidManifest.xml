@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="app.binnacle"
+    android:versionCode="1" android:versionName="0.1">
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="29" />
+
+    <!-- READ-ONLY: lets us RECEIVE the stock CAN feed (protectionLevel normal). Nothing is ever sent. -->
+    <uses-permission android:name="com.xbs.permission.READ_CAN_DATABASE" />
+    <!-- Only so the forward-camera trigger may open the camera while CarPlay is in front (Android 10
+         blocks background activity starts otherwise). Grant: adb shell appops set <APP_ID> SYSTEM_ALERT_WINDOW allow -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Only for the EXPERIMENTAL in-dash camera (Dash settings, off by default). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Only to reach the unit's own ADB daemon on 127.0.0.1 (LocalShell: fixed commands such as End CarPlay). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Only to show whether the dash is on home Wi-Fi or CarPlay's hotspot (network icon). -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- GPS compass (direction of travel). Grant once: pm grant <APP_ID> android.permission.ACCESS_FINE_LOCATION -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <application
+        android:name=".DashApp"
+        android:label="Binnacle"
+        android:icon="@drawable/ic_launcher"
+        android:theme="@style/Dash"
+        android:allowBackup="false"
+        android:requestLegacyExternalStorage="true">
+
+        <!-- Phase 1: a normal launchable app. -->
+        <!-- Class name chosen so the stock CAN app hides its door popup over the dash (see com.xbs.launcher.MainActivity). -->
+        <activity android:name="com.xbs.launcher.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:resumeWhilePausing="true"
+            android:excludeFromRecents="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density|smallestScreenSize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- The Home role is on this activity itself, not an alias: the stock CAN app hides its door /
+                 boot pop-up only when the top activity's class is exactly com.xbs.launcher.MainActivity
+                 (canapp r1/e), and an alias showed up as app.binnacle.HomeAlias (in-car, 29 Oct).
+                 Installing does NOT switch Home by itself: the preferred Home stays as set.
+                 Make it Home:  adb shell su 0 cmd package set-home-activity com.xbs.launcher/com.xbs.launcher.MainActivity
+                 Undo:          adb shell su 0 cmd package set-home-activity com.xbs.launcher1/.MainActivity -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".HubActivity"
+            android:label="Apps and settings"
+            android:exported="false"
+            android:theme="@style/Dash.List" />
+    </application>
+</manifest>

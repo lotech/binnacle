@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Own artwork: a speedometer arc on a dark tile. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp" android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="#0e131b" android:pathData="M10,2h28a8,8 0 0 1 8,8v28a8,8 0 0 1 -8,8h-28a8,8 0 0 1 -8,-8v-28a8,8 0 0 1 8,-8z" />
+    <path android:strokeColor="#36b9ff" android:strokeWidth="4" android:strokeLineCap="round"
+        android:pathData="M12,32a12,12 0 1 1 24,0" />
+    <path android:strokeColor="#eef3f8" android:strokeWidth="3" android:strokeLineCap="round"
+        android:pathData="M24,32l7,-9" />
+</vector>

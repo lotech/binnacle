@@ -1,0 +1,580 @@
+package app.binnacle;
+
+import android.app.Activity;
+import android.content.ComponentName;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.StateListDrawable;
+import android.os.Bundle;
+import android.text.TextUtils;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.KeyEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.GridLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
+/**
+ * Apps and dash settings for the 1920x720 panel: section tabs down one side (the right by default,
+ * for a right-hand-drive car; Display tab swaps it), big tiles on the other (an app grid, or setting cards with tap-sized segmented choices and switches) instead of
+ * full-width Android list rows. Everything is focusable, so the steering wheel's scroll / OK can
+ * reach it, and focus shows as an accent outline.
+ *
+ * Settings are this app's own SharedPreferences (same keys as before); nothing here is sent to
+ * the car. The CarPlay layout is shown read-only (see StockScreens).
+ */
+public class HubActivity extends Activity {
+
+    private static final String[] TABS = {"Apps", "Display", "Camera", "Car", "Advanced"};
+
+    private SharedPreferences prefs;
+    private FrameLayout content;
+    private LinearLayout rail;
+    private boolean menuRightBuilt;
+    private final List<TextView> tabViews = new ArrayList<>();
+    private int tab;
+    private float textScaleBuilt;
+    private boolean lightBuilt;
+    private List<Entry> apps;                 // loaded once per screen (icons are slow on the unit)
+
+    private static final class Entry {
+        final String label;
+        final Drawable icon;
+        final Intent intent;
+        Entry(String label, Drawable icon, Intent intent) { this.label = label; this.icon = icon; this.intent = intent; }
+    }
+
+    @Override protected void onCreate(Bundle state) {
+        super.onCreate(state);
+        prefs = DashApp.get(this).prefs();
+        textScaleBuilt = Style.textScale;
+        lightBuilt = Style.light;
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.HORIZONTAL);
+        root.setBackgroundColor(Style.BG);
+
+        rail = new LinearLayout(this);
+        rail.setOrientation(LinearLayout.VERTICAL);
+        rail.setPadding(dp(14), dp(12), dp(12), dp(8));
+        rail.setBackgroundColor(Style.PANEL);
+        TextView back = tabButton("‹  Dash");
+        back.setTextColor(Style.MUTED);
+        back.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { finish(); }
+        });
+        rail.addView(back, tabParams());
+        for (int i = 0; i < TABS.length; i++) {
+            final int index = i;
+            TextView t = tabButton(TABS[i]);
+            t.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { showTab(index); }
+            });
+            tabViews.add(t);
+            rail.addView(t, tabParams());
+        }
+        ScrollView railScroll = new ScrollView(this);     // six 48 dp rows fit 360 dp; scrolls on a shorter screen
+        railScroll.setBackgroundColor(Style.PANEL);
+        railScroll.addView(rail);
+        content = new FrameLayout(this);
+        content.setPadding(dp(18), dp(18), dp(18), dp(12));
+        // menu on the driver's side: right by default (right-hand drive), left as an option
+        boolean menuRight = !"left".equals(prefs.getString("menu_side", "right"));
+        menuRightBuilt = menuRight;
+        LinearLayout.LayoutParams railLp = new LinearLayout.LayoutParams(dp(190), ViewGroup.LayoutParams.MATCH_PARENT);
+        LinearLayout.LayoutParams contentLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1);
+        if (menuRight) {
+            root.addView(content, contentLp);
+            root.addView(railScroll, railLp);
+        } else {
+            root.addView(railScroll, railLp);
+            root.addView(content, contentLp);
+        }
+        setContentView(root);
+
+        showTab(state != null ? state.getInt("tab", 0) : 0);
+        tabViews.get(tab).requestFocus();
+    }
+
+    @Override protected void onSaveInstanceState(Bundle out) {
+        super.onSaveInstanceState(out);
+        out.putInt("tab", tab);
+    }
+
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+        }
+    }
+
+    /**
+     * Steering wheel: scroll down/up walks focus through tabs and tiles in reading order (handled
+     * here, before a ScrollView would turn it into a one-column jump), OK clicks. The first press
+     * after touching lands on the current tab instead of being lost.
+     */
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        int code = event.getKeyCode();
+        if ((code == KeyEvent.KEYCODE_DPAD_DOWN || code == KeyEvent.KEYCODE_DPAD_UP) && event.getAction() == KeyEvent.ACTION_DOWN) {
+            View f = getCurrentFocus();
+            if (f == null || !f.isFocused()) {
+                tabViews.get(tab).requestFocus();
+                return true;
+            }
+            // tabs first, then the content, whichever side the menu is on
+            ArrayList<View> order = new ArrayList<>(rail.getFocusables(View.FOCUS_FORWARD));
+            order.addAll(content.getFocusables(View.FOCUS_FORWARD));
+            int i = order.indexOf(f);
+            int j = i < 0 ? 0 : i + (code == KeyEvent.KEYCODE_DPAD_DOWN ? 1 : -1);
+            if (j >= 0 && j < order.size()) order.get(j).requestFocus();
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    /** Auto can switch the theme while this screen is open: rebuild in the new palette. */
+    private final DashApp.Listener themeListener = new DashApp.Listener() {
+        @Override public void onCarChanged(int code) {
+            if (code == DashApp.THEME_CHANGED && lightBuilt != Style.light) recreate();
+        }
+    };
+
+    @Override protected void onStart() {
+        super.onStart();
+        DashApp.get(this).addListener(themeListener);
+    }
+
+    @Override protected void onStop() {
+        DashApp.get(this).removeListener(themeListener);
+        super.onStop();
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (textScaleBuilt != Style.textScale) { recreate(); return; }   // text size changed: rebuild at the new size
+        if (lightBuilt != Style.light) { recreate(); return; }           // theme changed meanwhile (Auto)
+        if (tab == 1) showTab(1);                                          // CarPlay layout may have changed meanwhile
+    }
+
+    private void showTab(int i) {
+        tab = i;
+        for (int t = 0; t < tabViews.size(); t++) {
+            TextView v = tabViews.get(t);
+            v.setSelected(t == i);
+            v.setTextColor(t == i ? Style.FG : Style.MUTED);
+        }
+        content.removeAllViews();
+        switch (i) {
+            case 0: content.addView(appsGrid()); break;
+            case 1: content.addView(cards(          // most used first; the rest below the fold
+                    choiceCard("Theme", "Auto: follows the car's screen", "theme", "dark",
+                            new String[]{"auto", "light", "dark"}, new String[]{"Auto", "Light", "Dark"}),
+                    choiceCard("Text size", null, "text_size", "100",
+                            new String[]{"100", "115", "130"}, new String[]{"100%", "115%", "130%"}),
+                    btAutoConnectCard(),
+                    actionCard("End CarPlay", "Close CarPlay and rejoin home Wi-Fi",
+                            "End CarPlay", LocalShell.Command.END_CARPLAY),
+                    choiceCard("Tyre pressure", null, "tyre_unit", "psi",
+                            new String[]{"psi", "bar"}, new String[]{"psi", "bar"}),
+                    choiceCard("Menu side", null, "menu_side", "right",
+                            new String[]{"left", "right"}, new String[]{"Left", "Right"}),
+                    stepperCard("Range at 100%", "For the km estimate under the battery %", "full_range_km", 410, 150, 700, 5, "km"),                    infoCard("CarPlay layout", carplayLayoutText()))); break;
+            case 2: content.addView(cards(
+                    switchCard("Camera in the dash", "Forward camera in the centre window", "dash_camera", false),
+                    switchCard("Open stock camera on Drive", "Stock camera screen instead", "auto_camera", false))); break;
+            case 3: content.addView(cards(
+                    switchCard("Rainbow road on Autopilot", "Instead of the blue lane", "autopilot_rainbow", false))); break;
+            default: content.addView(cards(
+                    switchCard("Show raw CAN values", "Latest raw fields over the centre view, for in-car checks", "raw_overlay", false),
+                    switchCard("Demo data", "Simulated drive instead of the car feed", "demo", false),
+                    infoCard("About", "Binnacle, a read-only dash for this unit.\n"
+                            + "Car model: \"Tesla 2018 Model 3\" by Ameer Studio, CC BY 4.0, modified "
+                            + "(recoloured, mirrored for right-hand drive, posed, rendered)."))); break;
+        }
+    }
+
+    // ---- apps ----
+
+    private View appsGrid() {
+        if (apps == null) apps = loadApps();
+        GridLayout grid = new GridLayout(this);
+        grid.setColumnCount(6);
+        for (Entry e : apps) {
+            final Intent intent = e.intent;
+            LinearLayout tile = new LinearLayout(this);
+            tile.setOrientation(LinearLayout.VERTICAL);
+            tile.setGravity(Gravity.CENTER);
+            tile.setPadding(dp(6), dp(12), dp(6), dp(10));
+            tile.setBackground(bareBackground());   // just icon + name; a shape only when focused / pressed
+            tile.setFocusable(true);
+            tile.setClickable(true);
+            ImageView icon = new ImageView(this);
+            icon.setImageDrawable(e.icon);
+            tile.addView(icon, new LinearLayout.LayoutParams(dp(54), dp(54)));
+            TextView label = text(e.label, 15, Style.FG);
+            label.setGravity(Gravity.CENTER);
+            label.setSingleLine(true);
+            label.setEllipsize(TextUtils.TruncateAt.END);
+            label.setPadding(0, dp(8), 0, 0);
+            tile.addView(label, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            tile.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    if (Launch.start(HubActivity.this, new Intent(intent), true)) finish();
+                }
+            });
+            GridLayout.LayoutParams lp = new GridLayout.LayoutParams(GridLayout.spec(GridLayout.UNDEFINED), GridLayout.spec(GridLayout.UNDEFINED, 1f));
+            lp.width = 0;
+            lp.height = dp(118);
+            lp.setMargins(dp(4), dp(4), dp(4), dp(4));
+            grid.addView(tile, lp);
+        }
+        ScrollView sv = new ScrollView(this);
+        sv.addView(grid);
+        return sv;
+    }
+
+    private List<Entry> loadApps() {
+        PackageManager pm = getPackageManager();
+        List<Entry> list = new ArrayList<>();
+        try {
+            pm.getActivityInfo(Launch.STOCK_DASH, 0);
+            list.add(new Entry("Stock dash", getDrawable(R.drawable.ic_stock_dash),
+                    new Intent(Intent.ACTION_MAIN).setComponent(Launch.STOCK_DASH)));
+        } catch (PackageManager.NameNotFoundException ignored) {}
+        List<Entry> found = new ArrayList<>();
+        for (ResolveInfo ri : pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)) {
+            if (getPackageName().equals(ri.activityInfo.packageName)) continue;
+            found.add(new Entry(String.valueOf(ri.loadLabel(pm)), ri.loadIcon(pm),
+                    new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                            .setComponent(new ComponentName(ri.activityInfo.packageName, ri.activityInfo.name))));
+        }
+        Collections.sort(found, new Comparator<Entry>() {
+            @Override public int compare(Entry a, Entry b) { return a.label.compareToIgnoreCase(b.label); }
+        });
+        list.addAll(found);
+        return list;
+    }
+
+    /** Grey out a card whose setting has no effect right now (it stays readable). */
+    private View enabledIf(boolean enabled, View card) {
+        card.setAlpha(enabled ? 1f : 0.4f);
+        setEnabledDeep(card, enabled);
+        return card;
+    }
+
+    private static void setEnabledDeep(View v, boolean enabled) {
+        v.setEnabled(enabled);
+        v.setFocusable(enabled && v.isClickable());
+        if (v instanceof ViewGroup) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) setEnabledDeep(g.getChildAt(i), enabled);
+        }
+    }
+
+    // ---- setting cards ----
+
+    /** Two columns of cards, scrolling if they don't fit. */
+    /** Button height in settings cards (was 52: about half again bigger than needed). */
+    private static final int BUTTON_DP = 38;
+
+    private View cards(View... cards) {
+        GridLayout grid = new GridLayout(this);
+        grid.setColumnCount(2);
+        for (View c : cards) {
+            GridLayout.LayoutParams lp = new GridLayout.LayoutParams(GridLayout.spec(GridLayout.UNDEFINED), GridLayout.spec(GridLayout.UNDEFINED, 1f));
+            lp.width = 0;
+            lp.setMargins(dp(6), dp(6), dp(6), dp(6));
+            grid.addView(c, lp);
+        }
+        if (cards.length % 2 == 1) {              // keep a lone last card half width
+            GridLayout.LayoutParams lp = new GridLayout.LayoutParams(GridLayout.spec(GridLayout.UNDEFINED), GridLayout.spec(GridLayout.UNDEFINED, 1f));
+            lp.width = 0;
+            lp.height = 1;
+            grid.addView(new View(this), lp);
+        }
+        ScrollView sv = new ScrollView(this);
+        sv.addView(grid);
+        return sv;
+    }
+
+    private LinearLayout card(String title, String summary) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(14), dp(8), dp(14), dp(10));   // compact: most settings above the fold (the owner)
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Style.PANEL);
+        bg.setCornerRadius(dp(14));
+        bg.setStroke(dp(1), Style.LINE);
+        card.setBackground(bg);
+        TextView t = text(title, 16, Style.FG);
+        if (summary == null) t.setPadding(0, 0, 0, dp(4));
+        card.addView(t);
+        if (summary != null) {
+            TextView s = text(summary, 12, Style.MUTED);
+            s.setPadding(0, 0, 0, dp(2));
+            card.addView(s);
+        }
+        return card;
+    }
+
+    /** A row of segmented choices (each a big tap target). */
+    private View choiceCard(String title, String summary, final String key, String def, final String[] values, String[] labels) {
+        LinearLayout card = card(title, summary);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        final List<TextView> buttons = new ArrayList<>();
+        String current = prefs.getString(key, def);
+        for (int i = 0; i < values.length; i++) {
+            final String value = values[i];
+            TextView b = chip(labels[i]);
+            b.setSelected(value.equals(current));
+            b.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    prefs.edit().putString(key, value).apply();
+                    for (TextView o : buttons) o.setSelected(o == v);
+                    // text size: rebuild the whole hub (rail included) at the new size once DashApp has applied it
+                    if ("text_size".equals(key)) v.post(new Runnable() {
+                        @Override public void run() { if (textScaleBuilt != Style.textScale) recreate(); }
+                    });
+                    if ("theme".equals(key)) v.post(new Runnable() {     // DashApp applied it: redraw this screen too
+                        @Override public void run() { if (lightBuilt != Style.light) recreate(); }
+                    });
+                    if ("menu_side".equals(key) && ("right".equals(value) != menuRightBuilt)) v.post(new Runnable() {
+                        @Override public void run() { recreate(); }
+                    });
+                }
+            });
+            buttons.add(b);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(BUTTON_DP), 1);
+            lp.setMargins(i == 0 ? 0 : dp(8), 0, 0, 0);
+            row.addView(b, lp);
+        }
+        card.addView(row);
+        return card;
+    }
+
+    /** On / off as one big chip. */
+    private View switchCard(String title, String summary, final String key, boolean def) {
+        LinearLayout card = card(title, summary);
+        final TextView b = chip(prefs.getBoolean(key, def) ? "On" : "Off");
+        b.setSelected(prefs.getBoolean(key, def));
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                boolean now = !b.isSelected();
+                prefs.edit().putBoolean(key, now).apply();
+                b.setSelected(now);
+                b.setText(now ? "On" : "Off");
+            }
+        });
+        card.addView(b, new LinearLayout.LayoutParams(dp(150), dp(BUTTON_DP)));
+        return card;
+    }
+
+    /** − value + for a number kept as a string preference (as the old EditText setting stored it). */
+    private View stepperCard(String title, String summary, final String key, int def, final int min, final int max, final int step, final String unit) {
+        LinearLayout card = card(title, summary);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        int start;
+        try {
+            start = Integer.parseInt(prefs.getString(key, String.valueOf(def)).trim());
+        } catch (RuntimeException e) {
+            start = def;
+        }
+        final int[] value = {Math.max(min, Math.min(max, start))};
+        if (value[0] != start) prefs.edit().putString(key, String.valueOf(value[0])).apply();   // what's shown is what's used
+        final TextView shown = text(value[0] + " " + unit, 22, Style.FG);
+        shown.setGravity(Gravity.CENTER);
+        TextView minus = chip("−"), plus = chip("+");
+        View.OnClickListener change = new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                value[0] = Math.max(min, Math.min(max, value[0] + (v.getTag() == null ? -step : step)));
+                prefs.edit().putString(key, String.valueOf(value[0])).apply();
+                shown.setText(value[0] + " " + unit);
+            }
+        };
+        plus.setTag("+");
+        minus.setOnClickListener(change);
+        plus.setOnClickListener(change);
+        row.addView(minus, new LinearLayout.LayoutParams(dp(72), dp(BUTTON_DP)));
+        row.addView(shown, new LinearLayout.LayoutParams(0, dp(BUTTON_DP), 1));
+        row.addView(plus, new LinearLayout.LayoutParams(dp(72), dp(BUTTON_DP)));
+        card.addView(row);
+        return card;
+    }
+
+    /**
+     * The unit's own Bluetooth auto-connect switch (same setting as the stock Car settings >
+     * Bluetooth switch; local to the unit, never sent to the car). Read and written through
+     * LocalShell, since a normal app may not write Settings.System.
+     */
+    private View btAutoConnectCard() {
+        LinearLayout card = card("Bluetooth auto-connect", "Reconnect the phone when the car wakes");
+        final TextView b = chip("…");
+        b.setEnabled(false);
+        runShell(LocalShell.Command.BT_AUTOCONNECT_GET, b, null);
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                boolean now = !b.isSelected();
+                runShell(now ? LocalShell.Command.BT_AUTOCONNECT_ON : LocalShell.Command.BT_AUTOCONNECT_OFF, b, now);
+            }
+        });
+        card.addView(b, new LinearLayout.LayoutParams(dp(150), dp(BUTTON_DP)));
+        return card;
+    }
+
+    /** Runs cmd off the main thread; shows On / Off on b from the reply (a GET) or from `set`. */
+    private void runShell(final LocalShell.Command cmd, final TextView b, final Boolean set) {
+        b.setEnabled(false);
+        new Thread(new Runnable() {
+            @Override public void run() {
+                Boolean on = set;
+                String err = null;
+                try {
+                    String out = LocalShell.run(cmd);
+                    if (on == null) on = out.startsWith("true");
+                } catch (Exception e) {
+                    err = e.getMessage();
+                }
+                final Boolean shown = on;
+                final String problem = err;
+                b.post(new Runnable() {
+                    @Override public void run() {
+                        b.setEnabled(true);
+                        if (problem != null) { b.setText(set == null ? "Couldn't read" : "Couldn't change"); return; }
+                        b.setSelected(shown);
+                        b.setText(shown ? "On" : "Off");
+                    }
+                });
+            }
+        }, "local-shell").start();
+    }
+
+    /** A card with one button that runs a fixed LocalShell command off the main thread. */
+    private View actionCard(String title, String summary, String label, final LocalShell.Command cmd) {
+        LinearLayout card = card(title, summary);
+        final TextView b = chip(label);
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                b.setEnabled(false);
+                b.setText("Working…");
+                new Thread(new Runnable() {
+                    @Override public void run() {
+                        String result;
+                        try {
+                            LocalShell.run(cmd);
+                            result = "Done";
+                        } catch (Exception e) {
+                            result = "Couldn't: " + e.getMessage();
+                        }
+                        final String shown = result;
+                        b.post(new Runnable() {
+                            @Override public void run() {
+                                b.setText(shown);
+                                b.setEnabled(true);
+                            }
+                        });
+                    }
+                }, "local-shell").start();
+            }
+        });
+        card.addView(b, new LinearLayout.LayoutParams(-1, dp(BUTTON_DP)));
+        return card;
+    }
+
+    private View infoCard(String title, String body) {
+        return card(title, body);
+    }
+
+    private String carplayLayoutText() {
+        String now = StockScreens.carplayLayout(this);
+        return (now == null ? "Current: unknown" : "Current: " + now)
+                + ". Recommended split: CarPlay on the left, so the speed sits on the right, away from the car's own speedo"
+                + " (or Full width). Change it in the stock dash: Settings, Screen display mode; the unit restarts to apply it.";
+    }
+
+    // ---- building blocks ----
+
+    private TextView tabButton(String label) {
+        TextView t = text(label, 20, Style.MUTED);
+        t.setGravity(Gravity.CENTER_VERTICAL);
+        t.setPadding(dp(16), 0, dp(12), 0);
+        t.setFocusable(true);
+        t.setClickable(true);
+        t.setBackground(states(Style.PANEL, Style.PANEL2, Style.LINE, 10));
+        return t;
+    }
+
+    private LinearLayout.LayoutParams tabParams() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48));
+        lp.setMargins(0, 0, 0, dp(4));
+        return lp;
+    }
+
+    private TextView chip(String label) {
+        TextView b = text(label, 15, Style.FG);
+        b.setGravity(Gravity.CENTER);
+        b.setFocusable(true);
+        b.setClickable(true);
+        b.setBackground(states(Style.PANEL2, 0xff1f5b80, Style.LINE, 12));
+        return b;
+    }
+
+    /** No tile at rest; an accent outline when the wheel focuses it, a light fill while pressed. */
+    private Drawable bareBackground() {
+        StateListDrawable s = new StateListDrawable();
+        s.addState(new int[]{android.R.attr.state_focused, android.R.attr.state_pressed}, shape(Style.PANEL2, Style.ACCENT, 14, 3));
+        s.addState(new int[]{android.R.attr.state_focused}, shape(0x00000000, Style.ACCENT, 14, 3));
+        s.addState(new int[]{android.R.attr.state_pressed}, shape(Style.PANEL2, 0, 14, 0));
+        s.addState(new int[]{}, new android.graphics.drawable.ColorDrawable(0x00000000));
+        return s;
+    }
+
+    /** Rounded background: normal / selected / pressed fills, and an accent outline when focused. */
+    private Drawable states(int normal, int selected, int pressed, int radiusDp) {
+        StateListDrawable s = new StateListDrawable();
+        // focus is an outline only, so a focused chip never looks like the chosen one
+        s.addState(new int[]{android.R.attr.state_focused, android.R.attr.state_selected}, shape(selected, Style.ACCENT, radiusDp, 3));
+        s.addState(new int[]{android.R.attr.state_focused}, shape(normal, Style.ACCENT, radiusDp, 3));
+        s.addState(new int[]{android.R.attr.state_pressed}, shape(pressed, 0, radiusDp, 0));
+        s.addState(new int[]{android.R.attr.state_selected}, shape(selected, 0, radiusDp, 0));
+        s.addState(new int[]{}, shape(normal, Style.LINE, radiusDp, 1));
+        return s;
+    }
+
+    private GradientDrawable shape(int fill, int stroke, int radiusDp, int strokeDp) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(fill);
+        g.setCornerRadius(dp(radiusDp));
+        if (strokeDp > 0) g.setStroke(dp(strokeDp), stroke);
+        return g;
+    }
+
+    private TextView text(String s, float sp, int colour) {
+        TextView t = new TextView(this);
+        t.setText(s);
+        t.setTextColor(colour);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp * Style.textScale);
+        return t;
+    }
+
+    private int dp(int v) {
+        return Math.round(v * getResources().getDisplayMetrics().density);
+    }
+}

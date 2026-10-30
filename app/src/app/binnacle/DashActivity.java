@@ -1,0 +1,368 @@
+package app.binnacle;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.KeyEvent;
+import android.view.View;
+import android.view.WindowManager;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.Toast;
+
+/**
+ * The dash: left panel | centre window | right panel, in the mockup's 340 / 1240 / 340 proportions.
+ * Steering wheel: scroll up/down moves the dock selection, right tilt (ENTER) opens it.
+ */
+public class DashActivity extends Activity implements DashApp.Listener, RightPanelView.DockListener {
+
+    private static final int REQ_CAMERA = 2;
+    private static final long FOCUS_TIMEOUT_MS = 8000;
+
+    private DashApp app;
+    private LeftPanelView left;
+    private CentreView centre;
+    private CameraPane camera;
+    /** Theme the views were built in (Style.light at onCreate). */
+    private boolean lightBuilt;
+    private boolean lastFrontCam, askedCamera, permissionDialogOpen, resumed, manualCameraPending;
+    private RightPanelView right;
+    private int focus = -1;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable clearFocus = new Runnable() {
+        @Override public void run() { setFocus(-1); }
+    };
+
+    @Override protected void onCreate(Bundle state) {
+        super.onCreate(state);
+        lightBuilt = Style.light;
+        if (state != null && state.containsKey(KEY_THEME_CAMERA)) {
+            themeCamera = state.getBoolean(KEY_THEME_CAMERA);
+            themeCameraAuto = state.getBoolean(KEY_THEME_CAMERA_AUTO, true);
+        }
+        app = DashApp.get(this);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+        left = new LeftPanelView(this, app.car);
+        centre = new CentreView(this, app);
+        right = new RightPanelView(this, app);
+        right.setDockListener(this);
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.HORIZONTAL);
+        root.setBackgroundColor(Style.BG);
+        root.addView(left, new LinearLayout.LayoutParams(0, -1, Style.SIDE_W));
+        camera = new CameraPane(this, new CameraPane.Listener() {
+            @Override public void onCameraProblem(String problem) {
+                Toast.makeText(DashActivity.this, problem, Toast.LENGTH_LONG).show();
+            }
+            @Override public void onCameraState(boolean on) {
+                if (right != null) right.setCameraOn(on);
+            }
+        });
+        camera.setVisibility(View.GONE);
+        // the camera sits exactly over the centre's rounded window (14 design px inset)
+        FrameLayout centreFrame = new FrameLayout(this) {
+            @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
+                int w = r - l, h = b - t, inset = Math.round(14f * h / Style.DESIGN_H);
+                centre.layout(0, 0, w, h);
+                camera.layout(inset, inset, w - inset, h - inset);
+                centre.attentionOverlay.layout(0, 0, w, h);
+            }
+        };
+        centreFrame.addView(centre);
+        centreFrame.addView(camera);
+        centreFrame.addView(centre.attentionOverlay);   // above the camera
+        root.addView(centreFrame, new LinearLayout.LayoutParams(0, -1, 1920f - 2 * Style.SIDE_W));
+        root.addView(right, new LinearLayout.LayoutParams(0, -1, Style.SIDE_W));
+        setContentView(root);
+        // no storage permission: the car renders are bundled (or in this app's own files dir)
+    }
+
+    @Override public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
+        permissionDialogOpen = false;
+        if (code == REQ_CAMERA) {
+            boolean granted = results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED;
+            boolean manual = manualCameraPending;
+            manualCameraPending = false;
+            if (granted && (manual || app.car.frontCamRequest)) { startDashCamera(); cameraAuto = !manual; }
+            return;
+        }
+    }
+
+    /**
+     * The drive logger (separate app app.binnacle.logger, capture/) is force-stopped with every
+     * car sleep; the dash comes back as Home, so it restarts the logger's service each time it
+     * starts. Does nothing if the logger isn't installed. Receive-only like the dash.
+     */
+    private void startLogger() {
+        try {
+            android.content.Intent i = new android.content.Intent().setComponent(
+                    new android.content.ComponentName("app.binnacle.logger", "app.binnacle.logger.CaptureService"));
+            if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
+        } catch (RuntimeException e) {
+            android.util.Log.i("binnacle", "drive logger not started: " + e.getMessage());
+        }
+    }
+
+    @Override protected void onStart() {
+        super.onStart();
+        startLogger();
+        app.startCompass();                 // no-op once running; picks up a location grant made since
+        // the theme changed while we were stopped (e.g. set in Apps & settings): rebuild in it
+        if (lightBuilt != Style.light) { recreate(); return; }
+        android.content.IntentFilter f = new android.content.IntentFilter("android.net.wifi.WIFI_AP_STATE_CHANGED");
+        f.addAction(android.net.ConnectivityManager.CONNECTIVITY_ACTION);
+        f.addAction(android.net.wifi.WifiManager.NETWORK_STATE_CHANGED_ACTION);
+        registerReceiver(netReceiver, f);              // sticky AP state arrives at once
+        updateNet();
+        app.addListener(this);
+        onCarChanged(-1);
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        resumed = true;
+        lastFrontCam = app.car.frontCamRequest;     // seed the edge detector with the current state
+        if (!dashCamera()) return;
+        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            // ask once per screen session; a denial must not re-prompt on every resume
+            if (!askedCamera && !permissionDialogOpen) {
+                askedCamera = true;
+                permissionDialogOpen = true;
+                requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA);
+            }
+        } else if (themeCamera != null ? themeCamera : lastFrontCam) {
+            startDashCamera();
+            cameraAuto = themeCamera == null || themeCameraAuto;   // a restored dock-opened camera stays manual
+        }
+        themeCamera = null;
+    }
+
+    /** Camera open/closed as it was before a theme recreation, so the palette change keeps the user's view. */
+    private Boolean themeCamera;
+    private boolean cameraWasRunning, themeCameraAuto;
+    private static final String KEY_THEME_CAMERA_AUTO = "theme_camera_auto";
+    private static final String KEY_THEME_CAMERA = "theme_camera";
+
+    @Override protected void onSaveInstanceState(Bundle out) {
+        super.onSaveInstanceState(out);
+        out.putBoolean(KEY_THEME_CAMERA, cameraWasRunning);
+        out.putBoolean(KEY_THEME_CAMERA_AUTO, cameraAuto);
+    }
+
+    /** The in-dash camera closes itself above this speed (the owner, 29 Oct), or with the Camera button. */
+    private static final int CAMERA_OFF_KMH = 15;
+    /** Opened by the car's flag (closes itself); false when opened from the dock (stays until closed). */
+    private boolean cameraAuto;
+    private int lastGear = CarState.GEAR_UNKNOWN;
+
+    /**
+     * Open the in-dash camera when the car raises its forward-camera flag (shift to Drive). The
+     * car drops the flag again after a few seconds; the camera stays up until the car passes
+     * CAMERA_OFF_KMH, goes back to Park, or the Camera button closes it (in-car feedback: the
+     * stock timeout was too short).
+     */
+    private void followFrontCam() {
+        boolean req = app.car.frontCamRequest;
+        if (req != lastFrontCam) {
+            lastFrontCam = req;
+            // only the flag's own opening is automatic: a camera already opened from the dock stays manual
+            if (req && dashCamera() && resumed && !camera.isRunning()) { startDashCamera(); cameraAuto = true; }
+        }
+        // Park closes it on the change into Park, not on the gear value: code 16 can arrive before the
+        // code 11 that leaves Park, and a stale P must not close the camera the flag just opened
+        int gear = app.car.gear;
+        boolean intoPark = gear == CarState.GEAR_P && lastGear != CarState.GEAR_P && lastGear != CarState.GEAR_UNKNOWN;
+        lastGear = gear;
+        if (cameraAuto && camera.isRunning() && (app.car.speedKmh() > CAMERA_OFF_KMH || intoPark)) camera.stop();
+    }
+
+    @Override protected void onPause() {
+        resumed = false;             // paused: feed updates must not reopen the camera; onResume reconciles
+        cameraWasRunning = camera.isRunning();   // onSaveInstanceState runs after this (API 28+)
+        camera.stop();               // never hold the camera while another app (or stock frontcam) is in front
+        super.onPause();
+    }
+
+    /** Experimental in-dash camera (Dash settings), off by default. */
+    private boolean dashCamera() {
+        return app.prefs().getBoolean("dash_camera", false);
+    }
+
+    private void startDashCamera() {
+        camera.start(30);   // the camera's own rate (TVI 1080p30); FramePacer evens it out on the 56 Hz panel
+    }
+
+    /**
+     * Home Wi-Fi or CarPlay's hotspot, for the right panel's network icon. The single Wi-Fi radio is
+     * either joined to a network (station) or serving CarPlay's access point (WIFI_AP_STATE 13).
+     */
+    private final android.content.BroadcastReceiver netReceiver = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(android.content.Context c, android.content.Intent i) {
+            if ("android.net.wifi.WIFI_AP_STATE_CHANGED".equals(i.getAction())) apOn = i.getIntExtra("wifi_state", 0) == 13;
+            updateNet();
+        }
+    };
+    private boolean apOn;
+
+    private void updateNet() {
+        int mode = RightPanelView.NET_NONE;
+        try {
+            android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            android.net.NetworkInfo ni = cm == null ? null : cm.getActiveNetworkInfo();
+            if (apOn) mode = RightPanelView.NET_HOTSPOT;
+            else if (ni != null && ni.isConnected() && ni.getType() == android.net.ConnectivityManager.TYPE_WIFI) mode = RightPanelView.NET_WIFI;
+        } catch (RuntimeException ignored) {
+        }
+        right.setNet(mode);
+    }
+
+    /** Network icon tapped: offer the other mode (start CarPlay, or end it and rejoin home Wi-Fi). */
+    @Override public void onNetIcon() {
+        final boolean hotspot = apOn;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(hotspot ? "On CarPlay's hotspot" : "On home Wi-Fi")
+                .setMessage(hotspot ? "End CarPlay and switch back to home Wi-Fi?" : "Start CarPlay? The dash leaves home Wi-Fi while CarPlay is on.")
+                .setPositiveButton(hotspot ? "Switch to Wi-Fi" : "Start CarPlay", new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) {
+                        if (!hotspot) { Launch.phone(DashActivity.this); return; }
+                        new Thread(new Runnable() {
+                            @Override public void run() {
+                                String msg;
+                                try { LocalShell.Command cmd = LocalShell.Command.END_CARPLAY; LocalShell.run(cmd); msg = "Back on home Wi-Fi"; }
+                                catch (Exception e) { msg = "Couldn't switch: " + e.getMessage(); }
+                                final String shown = msg;
+                                runOnUiThread(new Runnable() {
+                                    @Override public void run() { Toast.makeText(DashActivity.this, shown, Toast.LENGTH_SHORT).show(); }
+                                });
+                            }
+                        }, "local-shell").start();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    @Override protected void onStop() {
+        try { unregisterReceiver(netReceiver); } catch (RuntimeException ignored) { }
+        app.removeListener(this);
+        handler.removeCallbacks(clearFocus);
+        super.onStop();
+    }
+
+    @Override public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (level >= TRIM_MEMORY_RUNNING_LOW) centre.trimMemory();
+    }
+
+    @Override public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) hideSystemBars();
+    }
+
+    private void hideSystemBars() {
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+    }
+
+    @Override public void onCarChanged(int code) {
+        if (code == DashApp.THEME_CHANGED) { recreate(); return; }   // every view rebuilds its paints in the new colours
+        switch (code) {
+            case 10:
+                followFrontCam();                  // speed: close the camera once past CAMERA_OFF_KMH
+                left.invalidate();
+                centre.invalidate();
+                right.invalidate();                // speed decides the sensors / tyres card
+                break;
+            case 11:
+                followFrontCam();                  // gear: close the camera in Park
+                left.invalidate();
+                centre.invalidate();
+                right.invalidate();
+                break;
+            case 12:
+                right.invalidate();
+                break;
+            case 15:                            // doors: the centre car animates them and shows the badge
+            case 16:
+                followFrontCam();
+                centre.invalidate();
+                break;
+            case 3: case 4:                    // parking sensors: centre arcs and the right-hand sensor card
+                centre.invalidate();
+                right.invalidate();
+                break;
+            case 2:
+            case DashApp.HEADING_CHANGED:      // GPS compass, top right of the centre window
+                centre.invalidate();
+                break;
+            default:
+                followFrontCam();                  // e.g. a feed reset clears the flag
+                left.invalidate();
+                centre.invalidate();
+                right.invalidate();
+        }
+    }
+
+    @Override public void onDock(int index) {
+        setFocus(-1);
+        switch (index) {
+            case RightPanelView.DOCK_PHONE: Launch.phone(this); break;
+            case RightPanelView.DOCK_CAMERA:
+                if (dashCamera()) {
+                    if (camera.isRunning()) camera.stop();
+                    else if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                        permissionDialogOpen = true;   // an explicit tap may ask again
+                        manualCameraPending = true;    // and opens the camera once granted
+                        requestPermissions(new String[]{Manifest.permission.CAMERA}, REQ_CAMERA);
+                    } else { startDashCamera(); cameraAuto = false; }
+                }
+                else Launch.camera(this);
+                break;
+            case RightPanelView.DOCK_APPS: Launch.apps(this); break;
+        }
+    }
+
+    private void setFocus(int i) {
+        focus = i;
+        right.setFocusIndex(i);
+        handler.removeCallbacks(clearFocus);
+        if (i >= 0) handler.postDelayed(clearFocus, FOCUS_TIMEOUT_MS);
+    }
+
+    @Override public boolean onKeyDown(int keyCode, KeyEvent event) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                setFocus(focus < 0 ? 0 : (focus + 1) % RightPanelView.DOCK_COUNT);
+                return true;
+            case KeyEvent.KEYCODE_DPAD_UP:
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                setFocus(focus <= 0 ? RightPanelView.DOCK_COUNT - 1 : focus - 1);
+                return true;
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+                if (focus >= 0) onDock(focus); else setFocus(0);
+                return true;
+            case KeyEvent.KEYCODE_BACK:
+                if (focus >= 0) { setFocus(-1); return true; }
+                if (camera.isRunning()) { camera.stop(); return true; }
+                // As the Home app there is nothing behind us; swallow BACK instead of finishing.
+                if (Launch.isDefaultHome(this)) return true;
+                break;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override public void onBackPressed() {
+        if (Launch.isDefaultHome(this)) return;
+        super.onBackPressed();
+    }
+}

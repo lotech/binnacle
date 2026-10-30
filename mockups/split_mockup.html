@@ -1,0 +1,168 @@
+<title>Model 3 Split Cluster</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Condensed:wght@700;800&display=swap">
+<style>
+/* Layout: the real 1920x720 panel as a scaled stage. ZLink split mode = CarPlay 1280 px + our 640 px strip,
+   strip on either side. Strip = two 320 px columns (drive cluster | car status) over a power bar and dock.
+   Deliberately single dark theme: it is an in-car display. Text sizes = the tuned in-car sizes of app v0.2. */
+:root{
+  color-scheme:dark;
+  --bg:#07090d;--panel:#0e131b;--panel-2:#141b25;--line:#222c39;
+  --fg:#eef3f8;--muted:#8793a4;--dim:#505b6a;--accent:#36b9ff;--good:#37e0a0;--warn:#ffb84d;--bad:#ff5a52;
+  --cp-bg:#e9edf2;--cp-fg:#1b1f24;--cp-road:#ffffff;--cp-route:#2f8cff;--cp-park:#cfe8c9;--cp-water:#bcd8f0;
+  --disp:"Roboto Condensed","Roboto",system-ui,sans-serif;--body:"Roboto",system-ui,sans-serif;
+}
+html,body{background:var(--bg)}
+body{color:var(--fg);font-family:var(--body);padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;align-items:center;gap:14px}
+h1{margin:0;font:700 20px/1.2 var(--body);letter-spacing:.01em;text-wrap:balance;text-align:center}
+.intro{max-width:68ch;margin:0;color:var(--muted);font-size:14px;line-height:1.5;text-align:center}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;color:var(--muted);font-size:13px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{appearance:none;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;padding:7px 15px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#04121c}
+.seg button:focus-visible{outline:2px solid var(--fg);outline-offset:-2px}
+.wrap{width:100%;max-width:1920px;aspect-ratio:1920/720;position:relative;border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.stage{position:absolute;top:0;left:0;width:1920px;height:720px;transform-origin:top left;background:var(--bg);display:flex}
+.stage.right{flex-direction:row-reverse}
+.tnum{font-variant-numeric:tabular-nums}
+.lbl{font-size:18px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+
+/* ---- CarPlay side (ZLink renders this; drawn here as a stand-in) ---- */
+.cp{width:1280px;height:720px;position:relative;background:var(--cp-bg);color:var(--cp-fg);overflow:hidden}
+.cp .map{position:absolute;inset:0;width:100%;height:100%}
+.cp .dockbar{position:absolute;top:0;bottom:0;left:0;width:96px;background:#f7f8fa;border-right:1px solid #d5dbe2;display:flex;flex-direction:column;align-items:center;gap:18px;padding-top:28px}
+.cp .dockbar span{width:56px;height:56px;border-radius:14px;display:block}
+.cp .turn{position:absolute;top:24px;left:124px;background:#1f8f4e;color:#fff;border-radius:16px;padding:16px 22px;display:flex;gap:18px;align-items:center;box-shadow:0 8px 20px #0003}
+.cp .turn b{font:800 40px/1 var(--disp)}
+.cp .turn small{display:block;font-size:20px;opacity:.9;margin-top:4px}
+.cp .eta{position:absolute;bottom:20px;left:124px;background:#fff;border-radius:16px;padding:12px 20px;display:flex;gap:26px;font-size:18px;box-shadow:0 6px 16px #0002}
+.cp .eta b{font:700 26px/1.1 var(--disp);display:block}
+.cp .tag{position:absolute;top:18px;right:18px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#5d6773;background:#fff;border-radius:999px;padding:5px 12px}
+
+/* ---- our 640 px strip ---- */
+.strip{width:640px;height:720px;display:grid;grid-template-columns:320px 320px;grid-template-rows:1fr auto;border-left:1px solid var(--line)}
+.stage.right .strip{border-left:0;border-right:1px solid var(--line)}
+.col{padding:64px 22px 10px;display:flex;flex-direction:column;gap:14px}
+.col.drive{align-items:center;border-right:1px solid var(--line)}
+.status{display:flex;gap:16px;color:var(--dim)}
+.status svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.status .on{color:var(--good)} .status .beam{color:var(--accent)}
+.speed{font:800 150px/.84 var(--disp);margin-top:8px}
+.unit{font-size:22px;letter-spacing:.2em;color:var(--muted);margin-top:-2px}
+.gears{display:flex;gap:16px;font:800 34px/1 var(--disp);color:var(--dim)} .gears .on{color:var(--accent)}
+.turns{display:flex;gap:56px;align-items:center}
+.turns svg{width:38px;height:38px} .turns .lit{color:var(--warn)} .turns span{color:var(--dim)}
+.limit{width:88px;height:88px;border-radius:50%;background:#fff;border:8px solid var(--bad);display:grid;place-items:center;font:800 38px/1 var(--disp);color:#111}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.row{display:flex;justify-content:space-between;align-items:baseline}
+.big{font:800 42px/1 var(--disp)} .big small{font-size:19px}
+.cells{height:22px;border:2px solid var(--line);border-radius:6px;padding:3px;margin-top:8px}
+.fill{height:100%;width:77%;background:var(--good);border-radius:3px}
+.est{font-size:20px;color:var(--muted);margin-top:6px}
+.temp{font:800 27px/1 var(--disp)}
+.tyres{display:grid;grid-template-columns:1fr 56px 1fr;align-items:center;row-gap:8px;margin-top:6px}
+.tyres div{text-align:center;font:800 26px/1 var(--disp)} .tyres div small{display:block;font:400 15px/1.4 var(--body);color:var(--muted)}
+.carico{grid-row:1/3;grid-column:2;width:44px;height:96px;border:2.5px solid var(--muted);border-radius:22px;margin:auto}
+.foot{grid-column:1/3;padding:0 22px 18px;display:flex;flex-direction:column;gap:12px}
+.power .track{position:relative;height:16px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;margin-top:6px}
+.power .zero{position:absolute;left:38%;top:0;bottom:0;width:2px;background:var(--dim)}
+.power .bar{position:absolute;top:0;bottom:0;left:38%;width:18%;background:var(--warn)}
+.dock{display:flex;gap:10px}
+.app{flex:1;display:flex;gap:12px;align-items:center;justify-content:center;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px;font:500 17px/1 var(--body)}
+.app i{width:30px;height:30px;border-radius:8px;display:block}
+.notes{max-width:76ch;color:var(--muted);font-size:14px;line-height:1.55;margin:0;padding-left:1.2em}
+.notes li{margin-bottom:6px}
+@media (prefers-reduced-motion:no-preference){.turns .lit{animation:blink 1s steps(1) infinite}}
+@keyframes blink{50%{opacity:.2}}
+</style>
+
+<h1>Model 3 Split Cluster</h1>
+<p class="intro">ZLink's split mode gives CarPlay 1280 px and leaves a 640 px strip. This is the slim Binnacle dash for that strip, with the same live data, sized for reading from the driver's seat.</p>
+<div class="toolbar">
+  <span>CarPlay on the</span>
+  <span class="seg" role="group" aria-label="CarPlay side">
+    <button id="sideLeft" type="button" aria-pressed="true">Left</button>
+    <button id="sideRight" type="button" aria-pressed="false">Right</button>
+  </span>
+</div>
+
+<div class="wrap"><div class="stage" id="stage">
+  <section class="cp" aria-label="CarPlay (stand-in)">
+    <svg class="map" viewBox="0 0 1280 720" aria-hidden="true">
+      <rect width="1280" height="720" fill="var(--cp-bg)"/>
+      <path d="M760 0 L1280 0 L1280 260 Q1060 300 980 180 Q900 60 760 0Z" fill="var(--cp-water)"/>
+      <rect x="180" y="420" width="260" height="170" rx="18" fill="var(--cp-park)"/>
+      <g stroke="var(--cp-road)" stroke-width="26" stroke-linecap="round" fill="none">
+        <path d="M96 520 L1280 470"/><path d="M640 720 L700 0"/><path d="M300 0 L520 720"/><path d="M96 200 L1280 330"/>
+      </g>
+      <path d="M560 720 L612 520 L660 260 L1010 300" stroke="var(--cp-route)" stroke-width="16" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="590" cy="610" r="18" fill="var(--cp-route)" stroke="#fff" stroke-width="6"/>
+    </svg>
+    <div class="dockbar" aria-hidden="true"><span style="background:#34c759"></span><span style="background:#ff2d55"></span><span style="background:#007aff"></span><span style="background:#5856d6"></span></div>
+    <div class="turn"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 20V10h10M13 6l4 4-4 4"/></svg><div><b>300 m</b><small>Marine Parade</small></div></div>
+    <div class="eta"><div><b class="tnum">14:52</b>arrival</div><div><b class="tnum">12 min</b>8.4 km</div></div>
+    <span class="tag">CarPlay · 1280 px</span>
+  </section>
+
+  <section class="strip" aria-label="Binnacle strip, 640 px">
+    <div class="col drive">
+      <div class="status" aria-label="Lights">
+        <svg viewBox="0 0 30 30" class="on"><path d="M15 6c8 0 8 18 0 18Z"/><path d="M3 9l8 2M3 15h8M3 21l8-2"/></svg>
+        <svg viewBox="0 0 30 30"><path d="M15 6c8 0 8 18 0 18Z"/><path d="M3 9h8M3 15h8M3 21h8"/></svg>
+        <svg viewBox="0 0 30 30" class="beam"><circle cx="15" cy="15" r="11"/><path d="M4 15h22M15 15v11"/></svg>
+      </div>
+      <div class="speed tnum">47</div>
+      <div class="unit">KM / H</div>
+      <div class="gears" aria-label="Gear D"><span>P</span><span>R</span><span>N</span><span class="on">D</span></div>
+      <div class="turns" aria-label="Left indicator on">
+        <svg viewBox="0 0 32 32" class="lit"><path d="M22 7 L9 16 L22 25 Z" fill="currentColor" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/></svg>
+        <span><svg viewBox="0 0 32 32"><path d="M10 7 L23 16 L10 25 Z" fill="currentColor" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/></svg></span>
+      </div>
+      <div class="limit tnum" aria-label="Speed limit 50">50</div>
+    </div>
+    <div class="col">
+      <div class="row"><span class="temp tnum">18°C</span><span class="lbl">Outside</span></div>
+      <div class="tile">
+        <div class="row"><span class="lbl">Battery</span><span class="big tnum">77<small>%</small></span></div>
+        <div class="cells"><div class="fill"></div></div>
+        <div class="est">≈ 254 km est.</div>
+      </div>
+      <div class="tile">
+        <div class="lbl">Tyres · psi</div>
+        <div class="tyres tnum">
+          <div>42.1<small>FL</small></div><span class="carico" aria-hidden="true"></span><div>42.1<small>FR</small></div>
+          <div>41.6<small>RL</small></div><div>42.9<small>RR</small></div>
+        </div>
+      </div>
+    </div>
+    <div class="foot">
+      <div class="power"><span class="lbl">Power</span><div class="track"><div class="zero"></div><div class="bar"></div></div></div>
+      <div class="dock"><span class="app"><i style="background:var(--warn)"></i>Camera</span><span class="app"><i style="background:var(--accent)"></i>Apps</span><span class="app"><i style="background:var(--good)"></i>Full dash</span></div>
+    </div>
+  </section>
+</div></div>
+
+<ul class="notes">
+  <li><b>Gone from the full dash:</b> the centre car scene, the odometer tile and the CarPlay button (CarPlay is already on screen). Doors and the door animation return in the full dash; in the strip an open door would show as an orange line under the tyres.</li>
+  <li><b>Steering wheel:</b> the top 64 px stay clear for the wheel rim, as on the full dash. Scroll moves through Camera / Apps / Full dash; OK opens.</li>
+  <li><b>CarPlay side:</b> CarPlay on the left is the default. The real app gets a <b>CarPlay side</b> setting (Left / Right) that swaps the two.</li>
+  <li><b>How it would run:</b> the unit's own "Screen display mode" (Right / Left / Full) already switches ZLink between a 1280 px split on either side and full width. In split mode the other 640 px is the system navigation-bar area. Our app would need to fill that strip, which is still to be tested on the unit.</li>
+  <li>All drawing is our own; the CarPlay side is a stand-in sketch, not Apple artwork.</li>
+</ul>
+
+<script>
+(function () {
+  var stage = document.getElementById('stage'), wrap = stage.parentElement;
+  function fit() { stage.style.transform = 'scale(' + (wrap.clientWidth / 1920) + ')'; }
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(wrap); else window.addEventListener('resize', fit);
+  fit();
+  var l = document.getElementById('sideLeft'), r = document.getElementById('sideRight');
+  function side(right) {
+    stage.classList.toggle('right', right);
+    l.setAttribute('aria-pressed', String(!right));
+    r.setAttribute('aria-pressed', String(right));
+  }
+  l.onclick = function () { side(false); };
+  r.onclick = function () { side(true); };
+})();
+</script>

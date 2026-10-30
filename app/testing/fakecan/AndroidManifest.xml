@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- EMULATOR-ONLY test double of the stock CAN service. Never install on the head unit
+     (it would also be refused there: com.xbs.canapp is a system app with a different signature). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.xbs.canapp">
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="29" />
+    <application android:label="FAKE canapp (emulator test)">
+        <service android:name=".FakeMcuService" android:exported="true">
+            <intent-filter><action android:name="com.xbs.canapp.action.mcuservice" /></intent-filter>
+        </service>
+    </application>
+</manifest>

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Model 3 Cluster — private (stock silver assets)</title>
+<style>
+/* PRIVATE build: uses ZIQI's stock silver car renders from the unit. Do NOT publish.
+   Park -> side-on render (car/). Drive/Reverse -> rear render (car_bg/middlecar) on an animated road. */
+:root{
+  --bg:#07090d;--panel:#0e131b;--panel-2:#141b25;--screen:#05070b;--line:#222c39;
+  --fg:#eef3f8;--muted:#8793a4;--dim:#505b6a;--accent:#36b9ff;--good:#37e0a0;--warn:#ffb84d;--bad:#ff5a52;
+  --disp:"Roboto Condensed","Roboto",system-ui,sans-serif;--body:"Roboto",system-ui,sans-serif;color-scheme:dark;
+}
+*{box-sizing:border-box}html,body{height:100%}
+[hidden]{display:none!important}
+body{margin:0;background:radial-gradient(1200px 520px at 50% -12%,#0d1420,var(--bg) 62%);color:var(--fg);
+  font-family:var(--body);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;overflow-x:hidden}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;color:var(--muted);font-size:13px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--muted);font:inherit;padding:7px 14px;cursor:pointer;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#04121c}
+.note{font-size:12px;color:var(--dim)}
+.wrap{width:100%;max-width:1920px;aspect-ratio:1920/720;position:relative;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 30px 80px -30px #000}
+.stage{position:absolute;top:0;left:0;width:1920px;height:720px;transform-origin:top left;background:var(--bg);font-family:var(--disp)}
+.tnum{font-variant-numeric:tabular-nums}
+.lbl{font-family:var(--body);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.grid{display:grid;grid-template-columns:340px 1fr 340px;height:100%}
+.side{display:flex;flex-direction:column;padding:70px 24px 22px;gap:14px}
+.side.l{border-right:1px solid var(--line)}.side.r{border-left:1px solid var(--line)}
+.mid{flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px}
+.park{align-items:flex-end;justify-content:center}
+
+/* ---- left panel ---- */
+.statusrow{display:flex;justify-content:center;gap:16px;font-size:26px;color:var(--dim)}
+.statusrow .i{position:relative;line-height:1}
+.statusrow .on{color:var(--good)}.statusrow .beam{color:var(--accent)}.statusrow .ap{color:var(--accent)}.statusrow .warn{color:var(--bad)}
+.meta{display:flex;justify-content:space-between;align-items:center}
+.gearsel{display:flex;gap:13px;font-weight:700;font-size:30px;color:var(--dim);letter-spacing:.08em}
+.gearsel b{color:var(--fg)}.gearsel .on{color:var(--accent)}.gearsel .dim{color:var(--dim)}
+.limit{width:96px;height:96px;border-radius:50%;background:#fff;border:8px solid var(--bad);display:flex;align-items:center;justify-content:center}
+.limit span{font-weight:800;font-size:38px;color:#111}
+.spd{display:flex;flex-direction:column;align-items:center}
+.bigspeed{font-weight:800;font-size:160px;line-height:.84}
+.unit{font-family:var(--body);color:var(--muted);letter-spacing:.2em;text-transform:uppercase;font-size:15px;margin-top:-2px}
+.turns{display:flex;justify-content:center;gap:30px}
+.turn{width:40px;height:40px;color:var(--dim);display:inline-flex}
+.turn.r{color:var(--warn)}
+.turn svg{width:100%;height:100%}
+@keyframes blink{50%{opacity:.16}} @media(prefers-reduced-motion:no-preference){.turn.r{animation:blink 1s steps(1) infinite}}
+/* power / regen bar */
+.power{margin-top:auto}
+.power .track{position:relative;height:16px;border-radius:8px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden}
+.power .zero{position:absolute;left:38%;top:0;bottom:0;width:2px;background:var(--dim)}
+.power .bar{position:absolute;top:0;bottom:0;left:38%;width:22%;background:linear-gradient(90deg,var(--warn),#ff8a3d);border-radius:0 6px 6px 0}
+.power .scale{display:flex;justify-content:space-between;margin-top:6px;font-family:var(--body);font-size:10px;color:var(--dim)}
+.temp{display:flex;justify-content:space-between;align-items:center}
+.temp .v{font-weight:700;font-size:24px}
+
+/* ---- centre ---- */
+.centerwrap{padding:14px;display:flex;flex-direction:column;gap:10px;background:radial-gradient(640px 420px at 50% 0%,#0f1d2b,transparent 72%)}
+.ctoggle{display:flex;justify-content:center}
+.screen{flex:1;border-radius:16px;background:var(--screen);border:1px solid var(--line);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.badge{position:absolute;top:12px;left:14px;font-family:var(--body);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:#0b0f16aa;z-index:3}
+/* park: side view */
+.park img{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);max-height:44%;max-width:66%;object-fit:contain;filter:drop-shadow(0 20px 20px #000d);z-index:2}
+/* drive: perspective road (horizon ~34%) with scrolling lane dashes; car wheels on the road */
+.drive{background:linear-gradient(180deg,#0a1019 0%,#0d1622 40%,#0b111b 100%)}
+.road{position:absolute;left:0;right:0;bottom:0;height:66%;overflow:hidden;z-index:1}
+.road .surf{position:absolute;left:50%;top:0;bottom:0;width:104%;transform:translateX(-50%);
+  background:linear-gradient(180deg,#2c3644,#161d27);clip-path:polygon(44% 0,56% 0,100% 100%,0 100%)}
+/* white dashed lane lines either side of the car (scrolling) */
+.road .lane{position:absolute;left:0;right:0;top:-14%;bottom:-22%;z-index:2;
+  background:repeating-linear-gradient(180deg,#e8edf2 0 30px,transparent 30px 92px)}
+.road .lane.left{clip-path:polygon(47.4% 0,48% 0,30.3% 100%,29% 100%)}
+.road .lane.right{clip-path:polygon(52% 0,52.6% 0,71% 100%,69.7% 100%)}
+@media(prefers-reduced-motion:no-preference){.road .lane{animation:road .5s linear infinite}}
+@keyframes road{to{background-position:0 92px}}/* seamless: travel == one dash+gap period (30+62) */
+.drive .rear{position:absolute;left:50%;bottom:5%;transform:translateX(-50%);z-index:3;max-height:46%;max-width:39%;object-fit:contain;filter:drop-shadow(0 14px 14px #000e)}
+/* carplay / camera */
+.cp{background:radial-gradient(800px 360px at 70% 120%,#10361f,transparent 60%),linear-gradient(135deg,#0c1118,#0a1420);flex-direction:column;gap:8px}
+.cp .d{font-family:var(--disp);font-weight:800;font-size:32px}.cp .s{font-family:var(--body);color:#9fb3cc;font-size:13px}
+.cam{background:linear-gradient(180deg,#0a0f0c,#05211a 70%,#06130f)}
+.cam .tag{position:absolute;top:14px;left:16px;font-family:var(--body);font-size:12px;letter-spacing:.18em;color:#8fe9c4;text-transform:uppercase;z-index:3}
+.cam .g{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:62%;height:64%;border-left:4px solid #37e0a0aa;border-right:4px solid #ffb84daa;clip-path:polygon(18% 100%,82% 100%,62% 0,38% 0)}
+
+/* ---- right panel ---- */
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 15px}
+.bignum{font-weight:800;font-size:38px}
+.est{font-family:var(--body);font-size:12px;color:var(--muted)}
+.cells{width:100%;height:28px;border:2px solid var(--line);border-radius:6px;padding:3px;display:flex;margin-top:8px}
+.fill{flex:0 0 77%;background:linear-gradient(90deg,var(--good),#2fb985);border-radius:3px}
+.tpmsbox{position:relative;height:196px;display:flex;align-items:center;justify-content:center}
+.tpmsbox img{max-height:100%;max-width:60%;object-fit:contain}
+.psi{position:absolute;font-family:var(--disp);font-weight:700;font-size:21px;text-align:center}
+.psi span{display:block;font-family:var(--body);font-size:10px;color:var(--muted)}
+.psi.fl{top:14px;left:26px}.psi.fr{top:14px;right:26px}.psi.rl{bottom:14px;left:26px}.psi.rr{bottom:14px;right:26px}
+/* dock: compact row that fits the panel width */
+.dock{display:flex;gap:8px;margin-top:auto}
+.app{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line);flex:1;min-width:0;cursor:pointer}
+.app .ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#04121c}
+.ic.cp{background:#2ad15a}.ic.aa{background:#36b9ff}.ic.cam{background:#ffb84d}
+.app .nm{font-family:var(--body);font-size:12px;font-weight:600;white-space:nowrap}
+</style></head><body>
+
+<div class="bar">
+  <span class="lbl">Centre</span>
+  <span class="seg"><button id="bPark" aria-pressed="false">Park</button><button id="bDrive" aria-pressed="true">Drive</button><button id="bCP" aria-pressed="false">CarPlay</button><button id="bCam" aria-pressed="false">Camera</button></span>
+  <span class="note">PRIVATE · stock silver renders · Park = side view, Drive = rear view + moving road</span>
+</div>
+
+<div class="wrap"><div class="stage" id="stage">
+ <div class="grid">
+  <div class="side l">
+    <div class="statusrow">
+      <span class="i on" title="headlights">◉</span>
+      <span class="i beam" title="high beam">≡</span>
+      <span class="i ap" title="Autopilot">⊚</span>
+      <span class="i" title="seatbelt">⬓</span>
+      <span class="i" title="charge">⚡</span>
+    </div>
+    <div class="mid">
+      <div class="spd"><div class="bigspeed tnum">41</div><div class="unit">km / h</div></div>
+      <div style="display:flex;justify-content:center"><div class="gearsel"><b class="dim">P</b><b>R</b><b>N</b><b class="on">D</b></div></div>
+      <div class="turns">
+        <span class="turn l"><svg viewBox="0 0 32 32"><path d="M22 7 L9 16 L22 25 Z" fill="currentColor" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/></svg></span>
+        <span class="turn r"><svg viewBox="0 0 32 32"><path d="M10 7 L23 16 L10 25 Z" fill="currentColor" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/></svg></span>
+      </div>
+      <div style="display:flex;justify-content:center"><div class="limit"><span class="tnum">50</span></div></div>
+    </div>
+    <div class="power">
+      <div class="lbl" style="margin-bottom:6px">Power</div>
+      <div class="track"><div class="zero"></div><div class="bar"></div></div>
+      <div class="scale"><span>Regen</span><span>0</span><span>Power</span></div>
+    </div>
+  </div>
+
+  <div class="centerwrap">
+    <div class="ctoggle"><span class="lbl">Centre window</span></div>
+    <div class="screen" id="screen">
+      <div class="face park" id="fPark" hidden><img src="../app/assets/cars/teshila_car_silver/car/teshila_car_bg(0).png" alt="car side"><span class="badge">Parked · side view</span></div>
+      <div class="face drive" id="fDrive"><div class="road"><div class="surf"></div><div class="lane left"></div><div class="lane right"></div></div><img class="rear" src="../app/assets/cars/teshila_car_silver/car_bg/teshila_middlecar_bg.png" alt="car rear"><span class="badge">Driving · rear view + moving road</span></div>
+      <div class="face cp" id="fCP" hidden><span class="badge">CarPlay</span><div class="s">In 300 m</div><div class="d">Turn right · Marine Pde</div></div>
+      <div class="face cam" id="fCam" hidden><span class="tag">Forward camera</span><div class="g"></div></div>
+    </div>
+  </div>
+
+  <div class="side r">
+    <div class="temp" style="justify-content:flex-start;gap:10px"><div class="v tnum">18°C</div><div class="lbl">Outside</div></div>
+    <div class="tile"><div class="meta"><div class="lbl">Battery</div><div class="bignum tnum">77<span style="font-size:17px">%</span></div></div>
+      <div class="cells"><div class="fill"></div></div><div class="est" style="margin-top:7px">≈ 254 km est.</div></div>
+    <div class="tile"><div class="lbl">Tyres · psi</div>
+      <div class="tpmsbox">
+        <img src="../app/assets/cars/teshila_car_silver/tpmscar/tpmscar.png" alt="car">
+        <div class="psi fl">42<span>FL</span></div><div class="psi fr">42<span>FR</span></div>
+        <div class="psi rl">41<span>RL</span></div><div class="psi rr">43<span>RR</span></div>
+      </div></div>
+    <div class="tile meta"><div><div class="lbl">Odometer</div><div class="tnum" style="font-size:21px;margin-top:4px">54,723<span style="font-size:11px;color:var(--muted)"> km</span></div></div>
+      <div style="text-align:right"><div class="lbl">Doors</div><div class="est" style="margin-top:6px">All closed</div></div></div>
+    <div class="dock">
+      <div class="app"><div class="ic cp">CP</div><div class="nm">CarPlay</div></div>
+      <div class="app"><div class="ic aa">AA</div><div class="nm">Auto</div></div>
+      <div class="app"><div class="ic cam">▶</div><div class="nm">Camera</div></div>
+    </div>
+  </div>
+ </div>
+</div></div>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Roboto+Condensed:wght@500;700&display=swap">
+<script>
+var stage=document.getElementById('stage'),wrap=stage.parentElement;
+function fit(){stage.style.transform='scale('+(wrap.clientWidth/1920)+')';}
+new ResizeObserver(fit).observe(wrap);fit();
+var faces={Park:'fPark',Drive:'fDrive',CP:'fCP',Cam:'fCam'},btns={Park:'bPark',Drive:'bDrive',CP:'bCP',Cam:'bCam'};
+function show(k){for(var x in faces){document.getElementById(faces[x]).hidden=(x!==k);document.getElementById(btns[x]).setAttribute('aria-pressed',x===k);}}
+for(var x in btns){(function(k){document.getElementById(btns[k]).onclick=function(){show(k);};})(x);}
+</script>
+</body></html>

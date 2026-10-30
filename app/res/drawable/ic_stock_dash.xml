@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Own artwork: a two-dial instrument cluster, for the "Stock dash" entry (its own icon is a generic Android one). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp" android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="#141b25" android:pathData="M8,10h32a6,6 0 0 1 6,6v16a6,6 0 0 1 -6,6h-32a6,6 0 0 1 -6,-6v-16a6,6 0 0 1 6,-6z" />
+    <path android:strokeColor="#8793a4" android:strokeWidth="1.5" android:fillColor="#00000000"
+        android:pathData="M8,10h32a6,6 0 0 1 6,6v16a6,6 0 0 1 -6,6h-32a6,6 0 0 1 -6,-6v-16a6,6 0 0 1 6,-6z" />
+    <path android:strokeColor="#37e0a0" android:strokeWidth="2.5" android:strokeLineCap="round" android:fillColor="#00000000"
+        android:pathData="M9,30a7,7 0 1 1 14,0" />
+    <path android:strokeColor="#36b9ff" android:strokeWidth="2.5" android:strokeLineCap="round" android:fillColor="#00000000"
+        android:pathData="M25,30a7,7 0 1 1 14,0" />
+    <path android:strokeColor="#eef3f8" android:strokeWidth="2" android:strokeLineCap="round" android:pathData="M16,30l3,-5" />
+    <path android:strokeColor="#eef3f8" android:strokeWidth="2" android:strokeLineCap="round" android:pathData="M32,30l-3,-5" />
+</vector>

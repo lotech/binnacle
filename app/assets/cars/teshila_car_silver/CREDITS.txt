@@ -1,0 +1,4 @@
+Car model: "Tesla 2018 Model 3" by Ameer Studio (https://sketchfab.com/uchiha.321abc),
+https://sketchfab.com/3d-models/tesla-2018-model-3-5ef9b845aaf44203b6d04e2c677e444f
+Licence CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Modified: recoloured, posed, rendered.
+Rendered with a Blender script (make_pack.py).
