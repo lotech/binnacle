@@ -235,7 +235,7 @@ public class HubActivity extends Activity {
                     switchCard("Demo data", "Simulated drive instead of the car feed", "demo", false),
                     loggerCards(),
                     infoCard("About", "Binnacle, a read-only dash for this unit.\n"
-                            + "Car model: \"Tesla 2018 Model 3\" by Ameer Studio, CC BY 4.0, modified "
+                            + "3D car model by Ameer Studio (Sketchfab), CC BY 4.0, modified "
                             + "(recoloured, mirrored for right-hand drive, posed, rendered)."))); break;
         }
         if (keepScroll > 0 && content.getChildCount() > 0) {
