@@ -4,7 +4,7 @@
 
 <p align="center">A **read-only** replacement instrument-cluster app and tooling for the Carview / ZIQI "A007" 10.25" Tesla Model 3/Y Android cluster (sold as Hansshow / Tesery / VJOYCAR / Satonic).</p>
 
-The goal: a clean replacement Home/dashboard fixing some of the jank in the software that will never come via the overpromised OTA. Real car data (speed, battery %, gear, odometer, TPMS, lights, parking sensors, doors) and hands off to CarPlay / Android Auto / the reverse camera. The install is fully reversible.
+The goal: a replacement Home/dashboard aimed at fixing some of the jank in the software. We were promised Over the air updates but they never came so I fixed it myself. Real car data (speed, battery %, gear, odometer, TPMS, lights, parking sensors, doors) and hands off to CarPlay / Android Auto / the reverse camera. The install is fully reversible.
 
 ![Binnacle in the light theme: speed and gear on the left, the 3D car on a road with parking-sensor arcs and a STOP sign in the centre, battery, sensors and app buttons on the right](docs/images/dash-light.png)
 
