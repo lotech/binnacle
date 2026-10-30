@@ -56,7 +56,9 @@ In daily use on the owner's car since 29 Oct 2026, as the unit's Home app (it re
 | `app/tests/` | Plain-Java tests (tyre pressure, battery decoding), run by `app/build.sh` |
 | `app/assets/cars/` | The dash's car renders, made from a CC BY 4.0 model (see Credits) |
 
-## Capture tool — build & install
+## Binnacle Log tool — build & install
+This was an important part of the project to understand all the information coming from the Dashes MCU and the CANBUS. It is **NOT** installed by default and must be installed manually via ADB. When installed it displays an obvious icon to indicate it is logging. I care about privacy and security so if installed an icon is displayed to indicate it is logging. This is a simple tool but record ALL the data for the last 7 days and so should be considered not something you would want unless you want to help the project.
+
 No Gradle required; it builds with the Android SDK command-line tools (`javac` → `d8` → `aapt2` → `apksigner`), or import `capture/` into Android Studio. Then:
 ```
 adb connect <unit-ip>:5555
