@@ -11,7 +11,31 @@ bad() { echo "check_readonly: $*" >&2; fail=1; }
 #    the CAN content provider, the car-settings app, or content-resolver writes. (A content-resolver
 #    delete always takes arguments; File.delete() with none, for the app's own files, is fine.)
 FORBIDDEN='txMessengerPack|txGeneralProtocol|txPerformUartPack|txUpdateProtocol|setUartNormalTransmitEnable|McuSerial|McuManager|writeData|com\.mct\.serial|com\.xbs\.can\.provider|com\.xbs\.carsetup|ContentProviderClient|\.insert\(|\.update\(|\.delete\([^)]|bulkInsert|applyBatch|openOutputStream|openFileDescriptor|/dev/tty|\.put(Int|Long|Float|String)\(\s*(c\.)?getContentResolver|Settings\.(System|Global|Secure)\.put|(System|Global|Secure)\.put(Int|Long|Float|String)|SystemProperties|WRITE_SETTINGS|WRITE_SECURE_SETTINGS'
-grep -rnE "$FORBIDDEN" $SRC && bad "forbidden car-write reference found (above)"
+grep -rnE "$FORBIDDEN" $SRC; rc=$?
+[ $rc = 1 ] || bad "forbidden car-write reference found (above), or grep failed"
+
+# 1c. Nothing that could reach an API by name (reflection, loaded code, hidden services), write a
+#     file a way the checks below don't look for, or send on a Messenger (the feed's Messenger only
+#     ever receives). check_bytecode.sh also catches all of these.
+DYNAMIC='java\.lang\.reflect|\.get(Declared)?(Method|Field|Constructor)s?\(|forName\(|newInstance\(|DexClassLoader|PathClassLoader|InMemoryDexClassLoader|loadLibrary|System\.load\(|ServiceManager|java\.nio\.file|java\.nio\.channels|PrintStream|PrintWriter\(\s*(new +File|")|\.send\('
+grep -rnE "$DYNAMIC" src; rc=$?
+[ $rc = 1 ] || bad "reflection, dynamic code or unchecked file/socket API (above), or grep failed"
+
+# 1d. Sending to other apps only from the fixed places (logger query, camera close, logger start).
+for f in $(grep -rlE 'sendBroadcast|sendOrderedBroadcast|sendStickyBroadcast' src); do
+  case "$f" in src/app/binnacle/DashApp.java|src/app/binnacle/Launch.java) ;; *) bad "broadcast sent outside DashApp/Launch: $f";; esac
+done
+for f in $(grep -rlE 'startService|startForegroundService|bindService' src); do
+  case "$f" in src/app/binnacle/DashActivity.java|src/app/binnacle/CanFeed.java) ;; *) bad "service started or bound outside DashActivity/CanFeed: $f";; esac
+done
+grep -rnE 'sendOrderedBroadcast|sendStickyBroadcast' src && bad "ordered/sticky broadcasts are not allowed (above)"
+
+# 1a. What javac reads must be what this script reads: no symlinks (grep -r skips them, find and
+#     javac follow them) and no \u escapes (javac decodes them before parsing, anywhere in a file,
+#     so \u0074ransact is transact). Write the character itself instead.
+links=$(find src res assets -type l); [ -z "$links" ] || bad "symlinks in the tree: $links"
+grep -rnE '\\u+[0-9a-fA-F]{4}' --include='*.java' src; rc=$?
+[ $rc = 1 ] || bad "unicode escapes in Java source (above), or grep failed"
 
 # 1b. A content resolver may be used in StockScreens.java only, for exactly one read:
 #     Settings.System.getInt(c.getContentResolver(), KEY_LAYOUT, 0). Fails closed on grep errors.
@@ -28,18 +52,26 @@ find src -name '*.aidl' | grep . && bad "AIDL files are not allowed"
 grep -rnE 'IMcuService\.(Stub|Proxy)|extends +Binder|implements +IInterface' src && bad "service stub/proxy found (above)"
 
 # 3. Exactly one class may make binder calls, and only IMcuService transactions 1 and 2.
-hits=$(grep -rl '\.transact(' src)
-[ "$hits" = "src/app/binnacle/CanFeed.java" ] || bad "binder transact() outside CanFeed: $hits"
-[ "$(grep -c '\.transact(' src/app/binnacle/CanFeed.java)" = 1 ] || bad "CanFeed must have exactly one transact() call"
-grep -q 'TX_REGISTER = 1, TX_UNREGISTER = 2;' src/app/binnacle/CanFeed.java || bad "transaction codes changed"
-grep -q 'if (txn != TX_REGISTER && txn != TX_UNREGISTER) {' src/app/binnacle/CanFeed.java || bad "transaction allow-list changed"
+#    (Whole-line matches, so a pinned text kept in a comment beside a changed one doesn't pass.
+#    tools/check_bytecode.sh checks the same on the compiled class.)
+hits=$(grep -rlwE 'transact' src)
+[ "$hits" = "src/app/binnacle/CanFeed.java" ] || bad "binder transact outside CanFeed: $hits"
+[ "$(grep -E '(^|[^A-Za-z0-9_])transact *\(' src/app/binnacle/CanFeed.java | grep -cvE '^ *(\*|//)')" = 1 ] || bad "CanFeed must have exactly one transact() call"
+grep -qxE ' *b\.transact\(txn, data, r, 0\);' src/app/binnacle/CanFeed.java || bad "CanFeed's transact call changed"
+grep -qxE ' *private static final int TX_REGISTER = 1, TX_UNREGISTER = 2;' src/app/binnacle/CanFeed.java || bad "transaction codes changed"
+[ "$(grep -cwE 'TX_REGISTER|TX_UNREGISTER' src/app/binnacle/CanFeed.java)" = 4 ] || bad "unexpected use of the transaction codes"
+grep -qxE ' *if \(txn != TX_REGISTER && txn != TX_UNREGISTER\) \{' src/app/binnacle/CanFeed.java || bad "transaction allow-list changed"
 [ "$(grep -cE 'call\(TX_(REGISTER|UNREGISTER), ' src/app/binnacle/CanFeed.java)" = 2 ] || bad "call() used with something other than TX_REGISTER / TX_UNREGISTER"
 [ "$(grep -cE '[^.a-zA-Z]call\(' src/app/binnacle/CanFeed.java)" = 3 ] || bad "unexpected call() use in CanFeed"
 
 # 4. Local shell (the unit's own ADB on 127.0.0.1): one class, fixed commands, nothing near the car.
-hits=$(grep -rlE 'Socket\(|ServerSocket|ProcessBuilder|Runtime\.getRuntime' src)
+hits=$(grep -rlwE 'Socket|ServerSocket|SocketChannel|ProcessBuilder|getRuntime' src)
 [ -z "$hits" ] || [ "$hits" = "src/app/binnacle/LocalShell.java" ] || bad "sockets/processes outside LocalShell: $hits"
-grep -nE 'ProcessBuilder|Runtime\.getRuntime' src/app/binnacle/LocalShell.java && bad "LocalShell must not start processes (above)"
+grep -nwE 'ProcessBuilder|getRuntime|exec' src/app/binnacle/LocalShell.java && bad "LocalShell must not start processes (above)"
+# every line of the Command list is one constant with one plain string: no concatenation, no
+# constant split over lines (comments and blank lines aside)
+awk '/enum Command \{/ { on = 1; next } /final String shell;/ { on = 0 } on' src/app/binnacle/LocalShell.java \
+    | grep -vE '^ *(/\*\*|\*|\*/|//)|^ *$' | grep -vxE ' *[A-Z_]+\("[^"\\]*"\)[,;]' && bad "LocalShell commands must each be one plain string on one line (above)"
 cmds=$(grep -oE '^ *[A-Z_]+\("[^"]*"\)' src/app/binnacle/LocalShell.java | sed -E 's/^ *//')
 expected='END_CARPLAY("svc wifi disable && sleep 2 && svc wifi enable && echo BINNACLE_OK")
 BT_AUTOCONNECT_GET("settings get system xbs_isautoconnect && echo BINNACLE_OK")
@@ -47,6 +79,7 @@ BT_AUTOCONNECT_ON("settings put system xbs_isautoconnect true && echo BINNACLE_O
 BT_AUTOCONNECT_OFF("settings put system xbs_isautoconnect false && echo BINNACLE_OK")'
 [ "$cmds" = "$expected" ] || bad "LocalShell command list changed: review it, then update this guard"
 [ "$(grep -c 'shell:' src/app/binnacle/LocalShell.java)" = 1 ] && grep -qF '("shell:" + cmd.shell + "\0")' src/app/binnacle/LocalShell.java || bad "LocalShell may only open shell:<Command.shell>"
+[ "$(grep -cw 'A_OPEN' src/app/binnacle/LocalShell.java)" = 2 ] || bad "LocalShell may open exactly one ADB stream"
 grep -rnE 'LocalShell\.run\(' src | grep -vE 'LocalShell\.run\(cmd\)' && bad "LocalShell.run must take a Command (above)"
 
 # 5. File writes: only CameraPane (the camera decoder's two nodes: local hardware, not the car) and

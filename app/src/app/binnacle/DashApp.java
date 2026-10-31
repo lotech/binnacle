@@ -22,6 +22,15 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
 
     /** Same debounce as the stock launcher: at most one camera open/close per second. */
     private static final long CAMERA_DEBOUNCE_MS = 1000;
+    /**
+     * Feed watchdog: while the car is moving, speed and power change all the time, so the CAN app
+     * sends something every fraction of a second. This long with nothing at all means the data
+     * stopped (canapp alive but silent: a stalled serial link, an MCU reset), and the last speed
+     * and gear must not stay on screen as if live. Not checked while stopped, when the car may
+     * legitimately have nothing new to say.
+     */
+    static final long STALE_MS = 5000;
+    static final String STALE_PROBLEM = "No car data, reconnecting";
 
     public final CarState car = new CarState();
     private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
@@ -181,10 +190,29 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         if (!demo) restoreLights();
         lastFrontCam = false;
         main.removeCallbacks(cameraAction);
+        cameraPending = false;
+        main.removeCallbacks(stalled);
         problem = null;
         for (Listener l : listeners) l.onCarChanged(-1);
         feed.start();
     }
+
+    /**
+     * Fires STALE_MS after the last live message while the car was moving (re-armed by every
+     * message in onData). Clears the screen like a lost feed, then subscribes afresh: the old
+     * registration is dropped (unregister) and a new one made (register), the same two calls as
+     * always. Re-arms only once data with the car moving comes back, so it never loops.
+     */
+    private final Runnable stalled = new Runnable() {
+        @Override public void run() {
+            if (demo || !(feed instanceof CanFeed) || !car.moving() || car.speed <= 0) return;
+            android.util.Log.w("binnacle", "no CAN data for " + STALE_MS + " ms while moving: subscribing again");
+            onStatus(STALE_PROBLEM);
+            feed.stop();
+            feed = new CanFeed(DashApp.this, DashApp.this);
+            feed.start();
+        }
+    };
 
     private void applyTextSize() {
         int pct;
@@ -266,6 +294,13 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         } catch (Throwable t) {
             android.util.Log.w("binnacle", "bad data for code " + code, t);
             return;
+        } finally {
+            // feed watchdog: any message, even one that fails to decode, shows the feed is alive.
+            // Armed only while the car is moving in D/R (the timer checks again when it fires).
+            if (!demo) {
+                main.removeCallbacks(stalled);
+                if (car.moving() && car.speed > 0) main.postDelayed(stalled, STALE_MS);
+            }
         }
         if (code == 18) updateTheme(false);        // screen brightness: Auto theme follows the car's display
         for (Listener l : listeners) l.onCarChanged(code);
@@ -372,11 +407,20 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
 
     @Override public void onStatus(String p) {
         problem = p;
-        // Feed lost (service died, not found, or refused): nothing on screen is current any more,
-        // so clear it rather than keep showing the last speed / gear / indicators as live.
+        // Feed lost (service died, not found, refused, or silent): nothing on screen is current any
+        // more, so clear it rather than keep showing the last speed / gear / indicators as live.
         if (p != null) {
             car.reset();
-            lastFrontCam = false;
+            main.removeCallbacks(stalled);
+            // A camera open still waiting out the debounce is dropped: the flag behind it is no longer
+            // known to be true. Otherwise lastFrontCam is kept, so when the feed returns with
+            // frontcamstate false a camera that is already up still gets its close. Never close it
+            // here: with the feed gone we can't know the car isn't in Reverse.
+            if (cameraPending && cameraWanted) {
+                main.removeCallbacks(cameraAction);
+                cameraPending = false;
+                lastFrontCam = false;          // it never opened, so a flag still up on return opens it then
+            }
         }
         for (Listener l : listeners) l.onCarChanged(-1);
     }
@@ -406,11 +450,13 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         cameraWanted = want;
         main.removeCallbacks(cameraAction);     // only the pending camera action, nothing else on main
         main.postDelayed(cameraAction, delay);
+        cameraPending = true;
     }
 
-    private boolean cameraWanted;
+    private boolean cameraWanted, cameraPending;
     private final Runnable cameraAction = new Runnable() {
         @Override public void run() {
+            cameraPending = false;
             lastCameraActionMs = SystemClock.elapsedRealtime();
             if (cameraWanted) Launch.camera(DashApp.this); else Launch.closeCamera(DashApp.this);
         }

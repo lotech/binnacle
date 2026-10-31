@@ -44,9 +44,12 @@ mkdir -p "$OUT/res" "$OUT/gen" "$OUT/classes"
 
 javac -Xlint:-options -source 8 -target 8 -encoding UTF-8 -bootclasspath "$JAR" -d "$OUT/classes" \
     $(find src "$OUT/gen" -name '*.java')
+# ...and check what javac produced as well: no source trick gets past the bytecode.
+tools/check_bytecode.sh "$OUT/classes"
 "$BT/d8" --min-api 21 --release --lib "$JAR" --output "$OUT" $(find "$OUT/classes" -name '*.class')
 
 (cd "$OUT" && zip -q unsigned.apk classes.dex)
+tools/check_bytecode.sh --apk "$OUT/unsigned.apk"   # one dex, no native code, nothing hidden in assets
 "$BT/zipalign" -f -p 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
 if [ -n "$RELEASE" ]; then          # no --ks-pass: apksigner prompts for it
     "$BT/apksigner" sign --ks "$KEYSTORE" --ks-key-alias "$KS_ALIAS" --out "$OUT/binnacle.apk" "$OUT/aligned.apk"
