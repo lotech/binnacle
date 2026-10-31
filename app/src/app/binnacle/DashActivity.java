@@ -95,7 +95,7 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
 
     /** Model Y pictures aren't bundled: picking it downloads them (DashApp.fetchModelYPack). */
     private void askCarModel() {
-        BinnacleDialog.show(this, "Welcome to Binnacle", "Which car is this?\nModel Y pictures download from GitHub (about 10 MB).",
+        BinnacleDialog.show(this, "Welcome to Binnacle", "Which car is this?\nOther colours download from GitHub (about 10 MB).",
                 new String[]{"Model 3", "Model Y"}, true, new BinnacleDialog.Choice() {
                     @Override public void chosen(int index) {
                         app.prefs().edit().putString("car_model", index == 1 ? "y" : "3").apply();

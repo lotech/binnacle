@@ -312,15 +312,17 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
     private final java.util.Set<String> packTried = new java.util.HashSet<>();
 
     /**
-     * Nothing is bundled for the Model Y, so choosing it (the choice says the pictures download)
-     * fetches the pack for the car's colour and side from the project's release once the car has
-     * reported its colour; until then, or if it fails, the Model 3 is shown. Tried once per run;
+     * Only the dark grey right-hand drive Model Y is bundled, so choosing Model Y (the choice says
+     * other colours download) fetches the pack for the car's colour and side from the project's
+     * release once the car has reported its colour; until then, or if it fails, CarArt shows the
+     * nearest it has. Tried once per run;
      * Apps & settings → Car → Car pictures retries by hand.
      */
     private void fetchModelYPack(int colour, final String hand) {
         if (!hand.startsWith("y-") || colour < 0 || colour >= CarPacks.COLOURS.length) return;
         final String c = CarPacks.COLOURS[colour];
-        if (!packTried.add(hand + "/" + c) || CarPacks.downloaded(this, hand, c) || CarPacks.downloading(hand, c)) return;
+        if (CarPacks.bundled(this, hand, c) || CarPacks.downloaded(this, hand, c) || CarPacks.downloading(hand, c)) return;
+        if (!packTried.add(hand + "/" + c)) return;
         new Thread(new Runnable() {
             @Override public void run() {
                 boolean ok;
