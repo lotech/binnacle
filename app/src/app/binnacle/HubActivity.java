@@ -451,7 +451,10 @@ public class HubActivity extends Activity {
         final Runnable update = new Runnable() {
             @Override public void run() {
                 if (sv.getScrollY() > dp(8)) scrolled[0] = true;
-                more.setVisibility(!scrolled[0] && sv.canScrollVertically(1) ? View.VISIBLE : View.GONE);
+                // only when a real amount is hidden, not just the bottom edge of a card
+                View page = sv.getChildCount() > 0 ? sv.getChildAt(0) : null;
+                int hidden = page == null ? 0 : page.getBottom() - sv.getScrollY() - (sv.getHeight() - sv.getPaddingBottom());
+                more.setVisibility(!scrolled[0] && hidden > dp(48) ? View.VISIBLE : View.GONE);
             }
         };
         if (android.os.Build.VERSION.SDK_INT >= 23) {
