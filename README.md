@@ -75,7 +75,7 @@ In daily use on the owner's car since 29 Oct 2026, as the unit's Home app (it re
 ## Layout
 | Folder | What |
 |---|---|
-| `app/` | The replacement read-only dash app (`app.binnacle`) |
+| `app/` | The replacement read-only dash app (installs as `com.xbs.launcher`, so the stock door pop-up stays away; code in `app.binnacle`) |
 | `capture/` | Optional developer tool: Binnacle logger, a separate read-only app that records the car data feed (no location) to its private storage; used to derive the field map |
 | `mockups/` | HTML mockups of the dash layout — **own artwork only**, no vendor assets |
 | `docs/` | `FIELD_MAP.md` (decoded CAN fields), the ADB access guide, and `UNIT-CHANGES.md` (changes made to the unit outside the app) |
