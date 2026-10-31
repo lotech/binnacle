@@ -223,10 +223,11 @@ public final class SetupActivity extends Activity {
     private View home() {
         final boolean isDefault = isDefaultHome();
         LinearLayout s = stepLayout("Open Binnacle when the unit starts",
-                isDefault ? "Binnacle is your Home app. The stock dash is still installed if you ever want it back "
+                isDefault ? "The stock dash is still installed if you ever want it back "
                         + "(Display → Home app, or Advanced → Remove Binnacle)."
                         : "Android shows its Home app list: pick Binnacle. The stock dash stays installed, and you can "
                         + "switch back the same way.");
+        if (isDefault) s.addView(tick("Binnacle is your Home app"));
         s.addView(buttons(isDefault ? new String[]{"Next"} : new String[]{"Not now", "Set as Default"},
                 isDefault ? new Runnable[]{new Runnable() { @Override public void run() { next(); } }}
                         : new Runnable[]{
@@ -239,8 +240,8 @@ public final class SetupActivity extends Activity {
         final boolean granted = granted(Manifest.permission.ACCESS_FINE_LOCATION);
         LinearLayout s = stepLayout("Compass",
                 "Shows the direction you're driving (N, NE, E …) from the unit's GPS. Binnacle uses location only for "
-                        + "this, keeps nothing and sends it nowhere."
-                        + (granted ? "\n\nAlready allowed." : ""));
+                        + "this, keeps nothing and sends it nowhere.");
+        if (granted) s.addView(tick("Already allowed"));
         s.addView(buttons(granted ? new String[]{"Next"} : new String[]{"Not now", "Allow"},
                 granted ? new Runnable[]{new Runnable() { @Override public void run() { next(); } }}
                         : new Runnable[]{
@@ -255,8 +256,8 @@ public final class SetupActivity extends Activity {
         final boolean on = prefs.getBoolean("dash_camera", false) && granted(Manifest.permission.CAMERA);
         LinearLayout s = stepLayout("Forward camera in the dash",
                 "When the car asks for the forward camera (shifting into Drive), Binnacle can show it in the centre "
-                        + "window, smoothed for this screen, instead of the stock full-screen camera."
-                        + (on ? "\n\nAlready on." : ""));
+                        + "window, smoothed for this screen, instead of the stock full-screen camera.");
+        if (on) s.addView(tick("Already on"));
         s.addView(buttons(on ? new String[]{"Next"} : new String[]{"Not now", "Use the dash camera"},
                 on ? new Runnable[]{new Runnable() { @Override public void run() { next(); } }}
                         : new Runnable[]{
@@ -328,6 +329,13 @@ public final class SetupActivity extends Activity {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** A green tick and a short line: this step is already done, just carry on. */
+    private TextView tick(String what) {
+        TextView t = text("✓  " + what, 19, Style.GOOD);
+        t.setPadding(0, 0, 0, dp(4));
+        return t;
     }
 
     /** Title, optional body, then whatever the step adds. */
