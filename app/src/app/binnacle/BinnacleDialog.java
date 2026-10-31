@@ -28,11 +28,6 @@ final class BinnacleDialog {
      * Cancelable by BACK or tapping outside only if cancelable.
      */
     static Dialog show(Activity a, String title, String message, String[] labels, boolean cancelable, final Choice choice) {
-        return show(a, title, message, false, labels, cancelable, choice);
-    }
-
-    /** As show(), with the message left-aligned (for a list of facts, e.g. About). */
-    static Dialog show(Activity a, String title, String message, boolean leftAlign, String[] labels, boolean cancelable, final Choice choice) {
         final Dialog d = new Dialog(a);
         d.requestWindowFeature(Window.FEATURE_NO_TITLE);
         d.setCancelable(cancelable);
@@ -48,28 +43,19 @@ final class BinnacleDialog {
         bg.setCornerRadius(dp(a, 22));
         box.setBackground(bg);
 
-        if (!leftAlign) {                                  // a list of facts needs the room more than the icon
-            ImageView icon = new ImageView(a);
-            icon.setImageResource(R.drawable.ic_launcher);
-            box.addView(icon, new LinearLayout.LayoutParams(dp(a, 56), dp(a, 56)));
-        }
+        ImageView icon = new ImageView(a);
+        icon.setImageResource(R.drawable.ic_launcher);
+        box.addView(icon, new LinearLayout.LayoutParams(dp(a, 56), dp(a, 56)));
 
         TextView t = text(a, title, 24, Style.FG);
         t.setTypeface(Style.DISPLAY);
         t.setGravity(Gravity.CENTER);
         t.setPadding(0, dp(a, 12), 0, dp(a, 4));
         box.addView(t);
-        TextView m = text(a, message, leftAlign ? 15 : 17, Style.MUTED);
-        m.setGravity(leftAlign ? Gravity.START : Gravity.CENTER);
+        TextView m = text(a, message, 17, Style.MUTED);
+        m.setGravity(Gravity.CENTER);
         m.setPadding(0, 0, 0, dp(a, 18));
-        if (leftAlign) {                                   // the screen is only ~360 dp tall: the facts scroll
-            android.widget.ScrollView sv = new android.widget.ScrollView(a);
-            sv.setScrollbarFadingEnabled(false);
-            sv.addView(m);
-            box.addView(sv, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(a, 150)));
-        } else {
-            box.addView(m);
-        }
+        box.addView(m);
 
         final LinearLayout row = new LinearLayout(a);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -111,7 +97,7 @@ final class BinnacleDialog {
         Window w = d.getWindow();
         if (w != null) {
             w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            w.setLayout(dp(a, leftAlign ? 820 : 520), LinearLayout.LayoutParams.WRAP_CONTENT);
+            w.setLayout(dp(a, 520), LinearLayout.LayoutParams.WRAP_CONTENT);
             w.setDimAmount(0.55f);
         }
         d.show();

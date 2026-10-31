@@ -1034,21 +1034,82 @@ public class HubActivity extends Activity {
         android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
         String feed = app.feedProblem() == null ? "receiving" : app.feedProblem();
         String logger = !app.loggerInstalled() ? "not installed" : app.loggerRecording() ? "installed, recording" : "installed";
-        String text = "Binnacle " + versionName() + installed + "\n"
-                + "Made by Lotech · github.com/lotech/binnacle\n"
+        String app1 = "Made by Lotech\n"
+                + "github.com/lotech/binnacle\n"
                 + "A read-only dash: it only listens to the car and never sends anything to it.\n\n"
-                + "This unit\n"
-                + androidVersion() + "\n"
+                + "3D models (CC BY 4.0, modified)\n"
+                + "Model 3: \"Tesla 2018 Model 3\" by Ameer Studio\n"
+                + "Model Y: \"2021 Tesla Model Y\" by tonielpro520";
+        String unit = androidVersion() + "\n"
                 + "Firmware " + android.os.Build.DISPLAY + "\n"
                 + "Board " + android.os.Build.BOARD + " · " + android.os.Build.HARDWARE + "\n"
                 + "Screen " + dm.widthPixels + " × " + dm.heightPixels + " at " + dm.densityDpi + " dpi\n"
-                + "Car data: " + feed + " · Drive logger: " + logger + "\n\n"
-                + "3D models (CC BY 4.0, modified)\n"
-                + "Model 3: \"Tesla 2018 Model 3\" by Ameer Studio (Sketchfab)\n"
-                + "Model Y: \"2021 Tesla Model Y\" by tonielpro520 (Sketchfab)";
-        BinnacleDialog.show(this, "About Binnacle", text, true, new String[]{"Close"}, true, new BinnacleDialog.Choice() {
-            @Override public void chosen(int index) { }
+                + "Car data: " + feed + "\n"
+                + "Drive logger: " + logger;
+
+        final android.app.Dialog d = new android.app.Dialog(this);
+        d.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(26), dp(18), dp(18), dp(22));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Style.PANEL);
+        bg.setStroke(dp(1), Style.LINE);
+        bg.setCornerRadius(dp(22));
+        box.setBackground(bg);
+
+        // header: icon, name and version, and an X that starts focused so one wheel press closes it
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        android.widget.ImageView icon = new android.widget.ImageView(this);
+        icon.setImageResource(R.drawable.ic_launcher);
+        head.addView(icon, new LinearLayout.LayoutParams(dp(52), dp(52)));
+        LinearLayout names = new LinearLayout(this);
+        names.setOrientation(LinearLayout.VERTICAL);
+        names.setPadding(dp(14), 0, 0, 0);
+        TextView title = text("Binnacle", 22, Style.FG);
+        title.setTypeface(Style.DISPLAY);
+        names.addView(title);
+        names.addView(text("Version " + versionName() + installed, 13, Style.MUTED));
+        head.addView(names, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView close = chip("✕");
+        close.setContentDescription("Close");
+        close.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { d.dismiss(); }
         });
+        head.addView(close, new LinearLayout.LayoutParams(dp(52), dp(52)));
+        box.addView(head);
+
+        // two columns: the app on the left, this unit on the right
+        LinearLayout cols = new LinearLayout(this);
+        cols.setOrientation(LinearLayout.HORIZONTAL);
+        cols.setPadding(0, dp(14), 0, 0);
+        cols.addView(aboutColumn("Binnacle", app1), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        View gap = new View(this);
+        cols.addView(gap, new LinearLayout.LayoutParams(dp(24), 1));
+        cols.addView(aboutColumn("This unit", unit), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        box.addView(cols);
+
+        d.setContentView(box);
+        android.view.Window w = d.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0x00000000));
+            w.setLayout(dp(860), ViewGroup.LayoutParams.WRAP_CONTENT);
+            w.setDimAmount(0.55f);
+        }
+        d.show();
+        close.requestFocus();
+    }
+
+    private View aboutColumn(String heading, String body) {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.addView(text(heading, 15, Style.FG));
+        TextView t = text(body, 13, Style.MUTED);
+        t.setPadding(0, dp(4), 0, 0);
+        col.addView(t);
+        return col;
     }
 
     /**
