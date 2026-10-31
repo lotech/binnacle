@@ -238,6 +238,7 @@ public class HubActivity extends Activity {
                     switchCard("Show raw CAN values", "Latest raw fields over the centre view, for in-car checks", "raw_overlay", false),
                     switchCard("Demo data", "Simulated drive instead of the car feed", "demo", false),
                     loggerCards(),
+                    resetCard(),
                     infoCard("About", "Binnacle, a read-only dash for this unit.\n"
                             + "Model 3: 3D car model by Ameer Studio (Sketchfab), CC BY 4.0, modified "
                             + "(recoloured, mirrored for right-hand drive, posed, rendered).\n"
@@ -535,6 +536,59 @@ public class HubActivity extends Activity {
             }
         }
         Toast.makeText(this, "Couldn't open the Home app setting", Toast.LENGTH_LONG).show();
+    }
+
+    /**
+     * Reset settings: clears Binnacle's own settings (theme, car model, driving side, ...) and
+     * restarts the dash, so the first-start questions come back. Downloaded car pictures stay.
+     * Remove Binnacle: Android's uninstaller for this app; with Binnacle gone the unit falls
+     * back to the stock dash, which was never removed. Both ask first.
+     */
+    private View resetCard() {
+        LinearLayout card = card("Reset or remove", "Start Binnacle's settings again, or take Binnacle off the unit and go back to the stock dash");
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        TextView reset = chip("Reset settings");
+        reset.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                BinnacleDialog.show(HubActivity.this, "Reset settings?",
+                        "Binnacle's settings go back to how they started and the dash restarts.\nDownloaded car pictures are kept.",
+                        new String[]{"Cancel", "Reset"}, true, new BinnacleDialog.Choice() {
+                            @Override public void chosen(int index) { if (index == 1) resetSettings(); }
+                        });
+            }
+        });
+        TextView remove = chip("Remove Binnacle");
+        remove.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                BinnacleDialog.show(HubActivity.this, "Remove Binnacle?",
+                        "The unit goes back to the stock dash, which is still installed.\nBinnacle's settings and downloaded car pictures are deleted with it.",
+                        new String[]{"Cancel", "Remove"}, true, new BinnacleDialog.Choice() {
+                            @Override public void chosen(int index) {
+                                if (index != 1) return;
+                                try {
+                                    startActivity(new Intent(Intent.ACTION_DELETE, android.net.Uri.parse("package:" + getPackageName())));
+                                } catch (RuntimeException e) {
+                                    Toast.makeText(HubActivity.this, "Couldn't open the uninstaller", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
+            }
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(BUTTON_DP), 1);
+        lp.setMargins(0, 0, dp(12), 0);
+        row.addView(reset, lp);
+        row.addView(remove, new LinearLayout.LayoutParams(0, dp(BUTTON_DP), 1));
+        card.addView(row);
+        return card;
+    }
+
+    /** Clears every setting, then restarts the app at the dash so nothing keeps the old values. */
+    private void resetSettings() {
+        prefs.edit().clear().commit();
+        Intent dash = getPackageManager().getLaunchIntentForPackage(getPackageName());
+        if (dash != null) startActivity(dash.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+        System.exit(0);   // the activity start brings the process back with fresh settings
     }
 
     private View switchCard(String title, String summary, final String key, boolean def) {
