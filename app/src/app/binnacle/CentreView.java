@@ -164,7 +164,7 @@ public class CentreView extends View {
         if (car.driverWarning != 0 || attentionUntil > now) attentionOverlay.invalidate();
         if (car.autopilot && car.followDistance >= 0 && blend > 0) drawFollowDistance(c);
         drawOdometer(c);
-        if (!car.raw.isEmpty() && app.prefs().getBoolean("raw_overlay", false)) drawRaw(c);
+        if (!car.raw.isEmpty() && app.rawOverlay()) drawRaw(c);
         c.restore();
         c.drawRoundRect(box, 16, 16, edge);
         c.restore();

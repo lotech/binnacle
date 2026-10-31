@@ -111,7 +111,7 @@ public class RightPanelView extends View {
         int soc = BatteryDecoder.percent(car.jhmail);
         // no live % yet (just woke, or a value off the table): show the last one, marked estimated
         boolean estimated = soc < 0;
-        if (estimated) soc = app.prefs().getInt(LAST_SOC, -1);
+        if (estimated) soc = lastSoc();
         else if (!app.isDemo()) rememberSoc(soc);
         boolean charging = car.charging;
         Style.size(lbl, Style.T_LABEL);
@@ -185,22 +185,30 @@ public class RightPanelView extends View {
     /** Keeps the last live % (and when) for after a sleep; saved when it changes, else once a minute. */
     private void rememberSoc(int soc) {
         long now = System.currentTimeMillis();
-        if (app.prefs().getInt(LAST_SOC, -1) == soc && now - app.prefs().getLong(LAST_SOC_TIME, 0) < 60_000) return;
+        if (savedSoc == soc && now - savedSocAt < 60_000) return;   // checked in memory: this runs every frame
+        savedSoc = soc;
+        savedSocAt = now;
         app.prefs().edit().putInt(LAST_SOC, soc).putLong(LAST_SOC_TIME, now).apply();
+    }
+
+    /** The last % saved, read from settings once and then kept in memory. */
+    private int savedSoc = Integer.MIN_VALUE;
+    private long savedSocAt;
+
+    private int lastSoc() {
+        if (savedSoc == Integer.MIN_VALUE) {
+            savedSoc = app.prefs().getInt(LAST_SOC, -1);
+            savedSocAt = app.prefs().getLong(LAST_SOC_TIME, 0);
+        }
+        return savedSoc;
     }
 
     /** Tyre display unit: psi by default (what the car and the stock dash show), or bar. */
     private String tyreUnit() {
-        return "bar".equals(app.prefs().getString("tyre_unit", "psi")) ? "bar" : "psi";
+        return app.tyreBar() ? "bar" : "psi";
     }
 
-    private int fullRangeKm() {
-        try {
-            return Integer.parseInt(app.prefs().getString("full_range_km", "410").trim());
-        } catch (RuntimeException e) {
-            return 330;
-        }
-    }
+    private int fullRangeKm() { return app.fullRangeKm(); }
 
     private void drawTyres(Canvas c) {
         float cx = (X0 + X1) / 2f, cy = (CARD_TOP + CARD_BOTTOM) / 2f - 6;   // no title (the owner): the unit goes under each value

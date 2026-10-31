@@ -691,7 +691,11 @@ public class HubActivity extends Activity {
         remove.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 BinnacleDialog.show(HubActivity.this, "Remove Binnacle?",
-                        "The unit goes back to the stock dash, which is still installed.\nBinnacle's settings and downloaded car images are deleted with it.",
+                        "The unit goes back to the stock dash, which is still installed.\nBinnacle's settings and downloaded car images are deleted with it."
+                                + (stockCameraDisabled()
+                                ? "\n\nThe stock camera screen is still switched off, so it won't open by itself in Drive. "
+                                + "Turn it back on first (docs/UNIT-CHANGES.md: pm enable com.xbs.frontcam/com.xbs.frontcam.CameraActivity)."
+                                : ""),
                         new String[]{"Cancel", "Remove"}, true, new BinnacleDialog.Choice() {
                             @Override public void chosen(int index) {
                                 if (index != 1) return;
@@ -710,6 +714,21 @@ public class HubActivity extends Activity {
         row.addView(remove, new LinearLayout.LayoutParams(0, dp(BUTTON_DP), 1));
         card.addView(row);
         return card;
+    }
+
+    /**
+     * True if the stock camera screen was switched off on this unit (docs/UNIT-CHANGES.md): removing
+     * Binnacle doesn't switch it back on. Only reads the component's state.
+     */
+    private boolean stockCameraDisabled() {
+        try {
+            int s = getPackageManager().getComponentEnabledSetting(
+                    new ComponentName("com.xbs.frontcam", "com.xbs.frontcam.CameraActivity"));
+            return s == PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                    || s == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER;
+        } catch (RuntimeException e) {
+            return false;                              // not on this unit
+        }
     }
 
     /** Clears every setting, then restarts the app at the dash so nothing keeps the old values. */

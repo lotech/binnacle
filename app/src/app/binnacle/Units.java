@@ -15,7 +15,7 @@ final class Units {
 
     /** True when the dash shows mph, miles and °F. */
     static boolean imperial(DashApp app) {
-        String u = app.prefs().getString("units", "auto");
+        String u = app.units();
         if ("metric".equals(u)) return false;
         if ("imperial".equals(u)) return true;
         return app.car.speedInMph();
