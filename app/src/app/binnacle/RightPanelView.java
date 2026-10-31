@@ -307,25 +307,27 @@ public class RightPanelView extends View {
     private final Paint centred = Style.text(Style.BODY, Style.T_SMALL, Style.MUTED, Paint.Align.CENTER);
 
     /**
-     * Efficiency: net Wh/km over the last 5 km, a 15-minute power (up) / regen (down) strip, and
-     * this drive's km, Wh/km and how much regen won back (EfficiencyTracker; power taken as kW).
+     * Efficiency, kept to a glance (in-car, 1 Nov: too many words): the net Wh/km over the last
+     * 5 km, a 15-minute strip of power (amber, up) and regen (green, down), and one line for this
+     * drive's distance and average (EfficiencyTracker; power taken as kW).
      */
     private void drawEfficiency(Canvas c) {
         EfficiencyTracker eff = app.efficiency();
         float cx = (X0 + X1) / 2f;
+        String per = "Wh/" + Units.distLabel(app);
         float recent = eff.recentWhPerKm();
         Style.size(effBig, Style.T_BATTERY);
         c.drawText(Float.isNaN(recent) ? "--" : String.valueOf(Math.round(Units.perDistance(app, recent))), cx, CARD_TOP + 58, effBig);
         Style.size(centred, Style.T_SMALL);
         centred.setColor(Style.MUTED);
-        c.drawText(Units.imperial(app) ? "Wh/mi · last 3 mi" : "Wh/km · last 5 km", cx, CARD_TOP + 84, centred);
+        c.drawText(per, cx, CARD_TOP + 84, centred);
 
-        // graph: zero line in the middle, power up in amber, regen down in green, 15 min wide
-        float gTop = CARD_TOP + 100, gBottom = CARD_TOP + 212, zero = gTop + (gBottom - gTop) * 0.62f;
+        // graph: zero line low in the middle, power up in amber, regen down in green, 15 min wide
+        float gTop = CARD_TOP + 104, gBottom = CARD_TOP + 250, zero = gTop + (gBottom - gTop) * 0.62f;
         float gx0 = X0 + 16, gx1 = X1 - 16;
         c.drawRect(gx0, zero - 0.75f, gx1, zero + 0.75f, line);
         // a slot per 10 s of the last 15 min up to now (same clock as the feed), newest on the right
-        int n = eff.graph(android.os.SystemClock.elapsedRealtime(), graph);
+        eff.graph(android.os.SystemClock.elapsedRealtime(), graph);
         float bw = (gx1 - gx0) / EfficiencyTracker.BUCKETS;
         for (int k = 0; k < EfficiencyTracker.BUCKETS; k++) {
             float kw = graph[k], x = gx0 + k * bw;
@@ -340,19 +342,15 @@ public class RightPanelView extends View {
                 c.drawRect(x, zero, x + bw - 1, zero + h, bar);
             }
         }
-        c.drawText(n == 0 ? "Power and regen appear once driving" : "Last 15 min · power ↑ regen ↓", cx, gBottom + 22, centred);
 
         double km = eff.tripKm();
-        float trip = eff.tripWhPerKm(), share = eff.regenShare();
-        String per = "Wh/" + Units.distLabel(app);
-        String l1 = km < 0.05 ? "This drive: --"
-                : String.format(Locale.UK, "This drive: %.1f %s", Units.distance(app, km), Units.distLabel(app));
-        String l2 = (Float.isNaN(trip) ? "-- " + per : Math.round(Units.perDistance(app, trip)) + " " + per)
-                + " · regen " + (Float.isNaN(share) ? "--" : Math.round(share * 100) + "%");
+        float trip = eff.tripWhPerKm();
+        String drive = km < 0.05 ? "--"
+                : String.format(Locale.UK, "%.1f %s · %s avg", Units.distance(app, km), Units.distLabel(app),
+                        Float.isNaN(trip) ? "--" : Math.round(Units.perDistance(app, trip)) + " " + per);
         centred.setColor(Style.FG);
-        Style.fit(centred, l2, X1 - X0 - 24);
-        c.drawText(l1, cx, gBottom + 52, centred);
-        c.drawText(l2, cx, gBottom + 74, centred);
+        Style.fit(centred, drive, X1 - X0 - 24);
+        c.drawText(drive, cx, gBottom + 36, centred);
         centred.setColor(Style.MUTED);
     }
 
