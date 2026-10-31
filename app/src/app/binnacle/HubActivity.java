@@ -224,7 +224,7 @@ public class HubActivity extends Activity {
                     choiceCard("Car model", "Which car pictures to show", "car_model", "3",
                             new String[]{"3", "y"}, new String[]{"Model 3", "Model Y"}),
                     choiceCard("Driving side", "Which side the steering wheel is on (car pictures)", "drive_side", "rhd",
-                            new String[]{"rhd", "lhd"}, new String[]{"Right", "Left"}),
+                            new String[]{"lhd", "rhd"}, new String[]{"Left", "Right"}),
                     carPicturesCard(),
                     choiceCard("Menu side", null, "menu_side", "right",
                             new String[]{"left", "right"}, new String[]{"Left", "Right"}),
