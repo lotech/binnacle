@@ -403,6 +403,9 @@ public class HubActivity extends Activity {
         sv.setVerticalScrollBarEnabled(true);
         sv.setScrollbarFadingEnabled(false);
         sv.setScrollBarSize(dp(6));
+        // the bar sits in its own gutter at the right edge, clear of the right-hand cards
+        sv.setScrollBarStyle(View.SCROLLBARS_OUTSIDE_OVERLAY);
+        sv.setPadding(0, 0, dp(16), 0);
         if (android.os.Build.VERSION.SDK_INT >= 29) {
             GradientDrawable thumb = new GradientDrawable();
             thumb.setColor(Style.MUTED);
