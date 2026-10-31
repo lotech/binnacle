@@ -181,8 +181,18 @@ public class HubActivity extends Activity {
             if (code == DashApp.PACKS_CHANGED && tab == CAR_TAB) showTab(CAR_TAB);   // whichever Car images card is showing now
             // the car reports its colour (code 9) after the card was built: rebuild it for that colour
             if (tab == CAR_TAB && packCardColour != DashApp.get(HubActivity.this).carColour()) showTab(CAR_TAB);
+            // a door, boot or frunk opened: back to the dash. The stock CAN app only holds back its
+            // full-screen door picture while the dash's own activity is in front, and the dash shows
+            // the open door on its car instead.
+            if (code == 15) {
+                int doors = DashApp.get(HubActivity.this).car.doors;
+                if (doorsSeen >= 0 && doors > 0 && (doors & ~doorsSeen) != 0) finish();
+                doorsSeen = doors;
+            }
         }
     };
+    /** Door bits when settings opened or last changed (-1: not known yet). */
+    private int doorsSeen = -1;
 
     private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
 
@@ -197,6 +207,7 @@ public class HubActivity extends Activity {
     @Override protected void onStart() {
         super.onStart();
         DashApp.get(this).addListener(themeListener);
+        doorsSeen = DashApp.get(this).car.doors;
         prefs.registerOnSharedPreferenceChangeListener(sideListener);
     }
 
