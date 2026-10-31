@@ -1091,6 +1091,14 @@ public class HubActivity extends Activity {
         cols.addView(aboutColumn("This unit", unit), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         box.addView(cols);
 
+        // the X is the only thing to press, so the wheel's OK closes straight away (no focus step first)
+        d.setOnKeyListener(new android.content.DialogInterface.OnKeyListener() {
+            @Override public boolean onKey(android.content.DialogInterface di, int code, KeyEvent e) {
+                if (code != KeyEvent.KEYCODE_ENTER && code != KeyEvent.KEYCODE_DPAD_CENTER) return false;
+                if (e.getAction() == KeyEvent.ACTION_UP) d.dismiss();
+                return true;
+            }
+        });
         d.setContentView(box);
         android.view.Window w = d.getWindow();
         if (w != null) {
