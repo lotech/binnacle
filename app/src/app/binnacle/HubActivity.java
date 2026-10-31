@@ -430,12 +430,23 @@ public class HubActivity extends Activity {
         more.setBackground(pill);
         frame.addView(more, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
+        // only before the first scroll: once you've scrolled you know there's more
+        final boolean[] scrolled = {false};
         final Runnable update = new Runnable() {
-            @Override public void run() { more.setVisibility(sv.canScrollVertically(1) ? View.VISIBLE : View.GONE); }
+            @Override public void run() {
+                if (sv.getScrollY() > dp(8)) scrolled[0] = true;
+                more.setVisibility(!scrolled[0] && sv.canScrollVertically(1) ? View.VISIBLE : View.GONE);
+            }
         };
-        sv.getViewTreeObserver().addOnScrollChangedListener(new android.view.ViewTreeObserver.OnScrollChangedListener() {
-            @Override public void onScrollChanged() { update.run(); }
-        });
+        if (android.os.Build.VERSION.SDK_INT >= 23) {
+            sv.setOnScrollChangeListener(new View.OnScrollChangeListener() {
+                @Override public void onScrollChange(View v, int x, int y, int ox, int oy) { update.run(); }
+            });
+        } else {
+            sv.getViewTreeObserver().addOnScrollChangedListener(new android.view.ViewTreeObserver.OnScrollChangedListener() {
+                @Override public void onScrollChanged() { update.run(); }
+            });
+        }
         sv.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             @Override public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) { sv.post(update); }
         });
