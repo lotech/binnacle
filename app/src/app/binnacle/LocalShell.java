@@ -17,8 +17,9 @@ import java.nio.charset.StandardCharsets;
  * CarPlay completely: the same as `adb shell ...` from the Mac, as the shell user (not root).
  *
  * Only the commands in {@link Command} can run; callers can't pass their own text, and
- * tools/check_readonly.sh checks the command strings. None of them touches the car, the MCU, CAN,
- * settings, properties or root. Blocking: call off the main thread.
+ * tools/check_readonly.sh checks the command strings. None of them touches the car, the MCU, CAN or
+ * root; the one setting they change (Bluetooth auto-connect, on the dash only) is owner-approved
+ * under CLAUDE.md's dash-local write rule. Blocking: call off the main thread.
  */
 final class LocalShell {
 
