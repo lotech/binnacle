@@ -141,7 +141,8 @@ public class HubActivity extends Activity {
 
     /**
      * Steering wheel: scroll down/up walks focus through tabs and tiles in reading order (handled
-     * here, before a ScrollView would turn it into a one-column jump), OK clicks. The first press
+     * here, before a ScrollView would turn it into a one-column jump), wrapping round at either end,
+     * OK clicks. The first press
      * after touching lands on the current tab instead of being lost.
      */
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
@@ -156,8 +157,18 @@ public class HubActivity extends Activity {
             ArrayList<View> order = new ArrayList<>(rail.getFocusables(View.FOCUS_FORWARD));
             order.addAll(content.getFocusables(View.FOCUS_FORWARD));
             int i = order.indexOf(f);
+            int n = order.size();
+            if (n == 0) return true;
             int j = i < 0 ? 0 : i + (code == KeyEvent.KEYCODE_DPAD_DOWN ? 1 : -1);
-            if (j >= 0 && j < order.size()) order.get(j).requestFocus();
+            // wrap round: past the last button back to the top of the menu, and up from the top to the end
+            if (j >= n) {
+                j = 0;
+                ScrollView page = pageScroll();
+                if (page != null) page.smoothScrollTo(0, 0);
+            } else if (j < 0) {
+                j = n - 1;
+            }
+            order.get(j).requestFocus();
             return true;
         }
         return super.dispatchKeyEvent(event);
