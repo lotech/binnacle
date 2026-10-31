@@ -265,7 +265,8 @@ public class HubActivity extends Activity {
                     switchCard("Show raw CAN values", "Latest raw fields over the centre view, for in-car checks", "raw_overlay", false),
                     switchCard("Demo data", "Simulated drive instead of the car feed", "demo", false),
                     loggerCards(),
-                    stack(resetCard(), infoCard("About", "Binnacle, a read-only dash for this unit.\n"
+                    stack(resetCard(), infoCard("About", "Binnacle, a read-only dash for this unit. Made by Lotech.\n"
+                            + "github.com/lotech/binnacle\n"
                             + "Model 3: 3D car model by Ameer Studio (Sketchfab), CC BY 4.0, modified "
                             + "(recoloured, mirrored for right-hand drive, posed, rendered).\n"
                             + "Model Y: based on \"2021 Tesla Model Y\" by tonielpro520 (Sketchfab), CC BY 4.0, modified "
