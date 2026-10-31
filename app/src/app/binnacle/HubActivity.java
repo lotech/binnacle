@@ -200,7 +200,12 @@ public class HubActivity extends Activity {
     private final SharedPreferences.OnSharedPreferenceChangeListener sideListener =
             new SharedPreferences.OnSharedPreferenceChangeListener() {
                 @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
-                    if (("drive_side".equals(key) || "car_model".equals(key) || "car_colour".equals(key)) && tab == CAR_TAB) showTab(CAR_TAB);
+                    if (!"drive_side".equals(key) && !"car_model".equals(key) && !"car_colour".equals(key)) return;
+                    // posted: listeners run in no set order, and the card reads DashApp's cached
+                    // settings, which DashApp refreshes in its own listener for this same change
+                    main.post(new Runnable() {
+                        @Override public void run() { if (tab == CAR_TAB) showTab(CAR_TAB); }
+                    });
                 }
             };
 
