@@ -269,7 +269,7 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
      * thread, and shared by all views; listeners get onCarChanged(-1) when they are ready.
      */
     public CarArt art() {
-        final int colour = car.carColour;
+        final int colour = carColour();
         final String hand = artSet();
         final int key = colour * 8 + java.util.Arrays.asList(CarPacks.HANDS).indexOf(hand);   // a colour, model or side change reloads
         fetchModelYPack(colour, hand);
@@ -301,6 +301,19 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
 
     /** Driving side (Car → Driving side): left-hand drive uses the lhd car renders. */
     public boolean leftHandDrive() { return "lhd".equals(prefs.getString("drive_side", "rhd")); }
+
+    /**
+     * The car's colour for the images (CarPacks.COLOURS index): Car → Car colour if picked by hand,
+     * else what the car reports (carcolor, as the stock dash's vehicle colour setting gives it).
+     */
+    public int carColour() {
+        String c = prefs.getString("car_colour", "auto");
+        try {
+            return "auto".equals(c) ? car.carColour : Integer.parseInt(c);
+        } catch (NumberFormatException e) {
+            return car.carColour;
+        }
+    }
 
     /** Car model (first start, or Car → Car model): "3" (default) or "y". */
     public boolean modelY() { return "y".equals(prefs.getString("car_model", "3")); }
@@ -365,7 +378,7 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         if ("text_size".equals(key)) applyTextSize();
         if ("autopilot_rainbow".equals(key)) rainbowRoad = prefs.getBoolean(key, false);
         if ("theme".equals(key)) updateTheme(true);
-        if ("drive_side".equals(key) || "car_model".equals(key)) reloadArt();
+        if ("drive_side".equals(key) || "car_model".equals(key) || "car_colour".equals(key)) reloadArt();
         for (Listener l : listeners) l.onCarChanged(-1);
     }
 

@@ -167,7 +167,7 @@ public class HubActivity extends Activity {
             if (code == DashApp.THEME_CHANGED && lightBuilt != Style.light) recreate();
             if (code == DashApp.PACKS_CHANGED && tab == CAR_TAB) showTab(CAR_TAB);   // whichever Car images card is showing now
             // the car reports its colour (code 9) after the card was built: rebuild it for that colour
-            if (tab == CAR_TAB && packCardColour != DashApp.get(HubActivity.this).car.carColour) showTab(CAR_TAB);
+            if (tab == CAR_TAB && packCardColour != DashApp.get(HubActivity.this).carColour()) showTab(CAR_TAB);
         }
     };
 
@@ -177,7 +177,7 @@ public class HubActivity extends Activity {
     private final SharedPreferences.OnSharedPreferenceChangeListener sideListener =
             new SharedPreferences.OnSharedPreferenceChangeListener() {
                 @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
-                    if (("drive_side".equals(key) || "car_model".equals(key)) && tab == CAR_TAB) showTab(CAR_TAB);
+                    if (("drive_side".equals(key) || "car_model".equals(key) || "car_colour".equals(key)) && tab == CAR_TAB) showTab(CAR_TAB);
                 }
             };
 
@@ -239,6 +239,7 @@ public class HubActivity extends Activity {
                             new String[]{"3", "y"}, new String[]{"Model 3", "Model Y"}),
                     choiceCard("Driving side", null, "drive_side", "rhd",
                             new String[]{"lhd", "rhd"}, new String[]{"Left", "Right"}),
+                    carColourCard(),
                     carPicturesCard(),
                     choiceCard("Units", null, "units", "auto",
                             new String[]{"auto", "metric", "imperial"}, new String[]{"Auto", "Metric", "Imperial"}),
@@ -717,12 +718,28 @@ public class HubActivity extends Activity {
      * Car images for the car's colour (from the car) and the driving side: built in, downloaded,
      * or a Download button that fetches the pack from the project's GitHub release (CarPacks).
      */
+    /** The colour as shown: the stock name "silver" is the dark grey paint. */
+    private static String colourName(String colour) { return "silver".equals(colour) ? "dark grey" : colour; }
+
+    /**
+     * Car colour for the images: Auto uses what the car reports (shown in the summary), or pick one
+     * by hand. A colour that isn't built in shows a Download button on the Car images card below.
+     */
+    private View carColourCard() {
+        int reported = DashApp.get(this).car.carColour;
+        String summary = reported >= 0 && reported < CarPacks.COLOURS.length
+                ? "Auto: " + colourName(CarPacks.COLOURS[reported]) + ", from the car" : "Auto: from the car (not reported yet)";
+        return choiceCard("Car colour", summary, "car_colour", "auto",
+                new String[]{"auto", "0", "1", "2", "3", "4"},
+                new String[]{"Auto", "White", "Red", "Blue", "Black", "Grey"});
+    }
+
     /** The car colour the Car images card was built for (-1: not reported yet). */
     private int packCardColour = Integer.MIN_VALUE;
 
     private View carPicturesCard() {
         final DashApp app = DashApp.get(this);
-        int c = app.car.carColour;
+        int c = app.carColour();
         packCardColour = c;
         if (c < 0) {                                   // not reported yet: don't guess a colour to fetch
             LinearLayout card = card("Car images", "Waiting for the car to report its colour");
@@ -733,7 +750,7 @@ public class HubActivity extends Activity {
         }
         final String colour = c >= 0 && c < CarPacks.COLOURS.length ? CarPacks.COLOURS[c] : "silver";
         final String hand = app.artSet();   // the tab rebuilds when the model or side changes
-        String what = (app.modelY() ? "Model Y, " : "Model 3, ") + colour
+        String what = (app.modelY() ? "Model Y, " : "Model 3, ") + colourName(colour)
                 + (hand.endsWith("lhd") ? ", left-hand drive" : ", right-hand drive");
         final LinearLayout card = card("Car images", what);
         final TextView b = chip("…");
