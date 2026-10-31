@@ -167,7 +167,7 @@ public final class SetupActivity extends Activity {
             card.setGravity(Gravity.CENTER);
             card.setFocusable(true);
             card.setClickable(true);
-            card.setPadding(dp(8), dp(6), dp(8), dp(6));
+            card.setPadding(dp(8), dp(16), dp(8), dp(8));     // room above the car
             card.setBackground(pictureCard());
             ImageView pic = new ImageView(this);
             pic.setImageBitmap(asset(dirs[m] + "/turn/0.png"));
@@ -206,7 +206,7 @@ public final class SetupActivity extends Activity {
         // the note shares the row with the buttons: the screen is only ~360 dp tall
         LinearLayout foot = new LinearLayout(this);
         foot.setGravity(Gravity.CENTER_VERTICAL);
-        TextView note = text("Other colours, and the left-hand drive Model Y, download from GitHub (about 10 MB).", 13, Style.MUTED);
+        TextView note = text("Any car images that aren't built in download over Wi-Fi when needed.", 13, Style.MUTED);
         note.setPadding(0, dp(14), dp(16), 0);
         foot.addView(note, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         s.addView(foot);
