@@ -276,8 +276,8 @@ public final class SetupActivity extends Activity {
     private View finished() {
         LinearLayout s = stepLayout("All set",
                 "Everything here can be changed in Apps → Settings, and Advanced → Run setup shows these steps again.\n\n"
-                        + "Some extras (hiding the stock camera screen and stock pop-ups) need a one-time change on the unit "
-                        + "itself: see docs/UNIT-CHANGES.md on github.com/lotech/binnacle.");
+                        + "For a complete takeover, some steps need doing by hand. See UNIT-CHANGES.md in the repo "
+                        + "(github.com/lotech/binnacle) for details.");
         s.addView(buttons(new String[]{"Done"}, new Runnable[]{
                 new Runnable() { @Override public void run() { finishSetup(); } }}));
         return s;
