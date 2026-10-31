@@ -448,7 +448,7 @@ public class HubActivity extends Activity {
         sv.addView(page);
         FrameLayout frame = new FrameLayout(this);
         frame.addView(sv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        final TextView more = text("More below  \u25BE", 15, Style.FG);
+        final TextView more = text("More below  ▾", 15, Style.FG);
         more.setPadding(dp(18), dp(6), dp(18), dp(6));
         GradientDrawable pill = new GradientDrawable();
         pill.setColor(Style.PANEL2);

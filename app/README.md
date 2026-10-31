@@ -7,9 +7,10 @@ Layout = the agreed "Dream" mockup: **left** speed, PRND, indicators, speed limi
 
 ## Read-only (absolute rule)
 The app never sends anything to the CAN bus or the MCU. How that is guaranteed:
-- `CanFeed` binds `com.xbs.canapp` and only ever makes IMcuService transaction **1** (register) and **2** (unregister); `call()` throws on anything else.
-- `tools/check_readonly.sh` runs before every build and fails it if the source mentions any car-write API (tx*, McuSerial, `com.xbs.can.provider`, `com.xbs.carsetup`, content-resolver writes) or calls `transact()` outside `CanFeed`.
-- `tools/check_readonly.sh` was tested by injecting a tx call, a `transact(5, ...)` and a content-resolver insert: each one fails the build.
+- `CanFeed` binds `com.xbs.canapp` and only ever makes IMcuService transaction **1** (register) and **2** (unregister); `call()` refuses (logs and drops) anything else.
+- `tools/check_readonly.sh` runs before every build and fails it if the source mentions any car-write API (tx*, McuSerial, `com.xbs.can.provider`, `com.xbs.carsetup`, content-resolver writes), reflection or loaded code, or calls `transact()` outside `CanFeed`. It also refuses symlinks and `\u` escapes in the source, which javac reads differently from a text search.
+- `tools/check_bytecode.sh` then checks what javac produced (and the packed APK), so no source trick gets past: `IBinder.transact` only in `CanFeed.call`, which must refuse anything but 1 and 2, pass its argument unchanged and only be called with 1 or 2; no reflection, dynamic code, native code, processes or settings writes; sockets only in `LocalShell`, HTTP only in `CarPacks`, file writes only in `CarPacks`/`CameraPane`; `LocalShell`'s string constants pinned; one dex and nothing executable in the APK.
+- `tools/test_guards.sh` (run by hand after changing a guard) slips ~30 known bypasses into copies of the source (reflection, whitespace and unicode tricks, symlinks, a widened allow-list, a concatenated shell command, another ADB service...) and checks both guards refuse each one. It covers the logger's guards too.
 - Emulator test against `testing/fakecan` (a stand-in canapp that logs every binder call it receives): the only calls ever seen were 1 (subscribe) and 2 (unsubscribe), across start, service kill/reconnect and demo on/off.
 - The only things it sends are ordinary app intents on the head unit: start ZLink / the camera activity / the drive logger's service, and the stock launcher's own "close camera" broadcast to `com.xbs.frontcam` (`com.xbs.action.reqcam`, `reqVal=false`). Nothing reaches the MCU or the car.
 - **On the unit itself** it does two more things, both pinned by the guard:
@@ -32,7 +33,7 @@ APP_ID=com.xbs.launcher app/build.sh
 ```
 app/build.sh        # -> app/build/binnacle.apk
 ```
-Needs JDK 17 and the Android SDK (build-tools + a platform). It runs `tools/check_readonly.sh` and `tests/run.sh` (tyre-pressure and battery decoding) first and stops on any failure. Signs with `~/.android/debug.keystore` unless `KEYSTORE`/`KS_ALIAS`/`KS_PASS` are set. Use the same key every time or upgrades will be refused.
+Needs JDK 17 and the Android SDK (build-tools + a platform). It runs `tools/check_readonly.sh` and `tests/run.sh` (tyre-pressure and battery decoding) first, `tools/check_bytecode.sh` on the classes and the APK, and stops on any failure. Signs with `~/.android/debug.keystore` unless `KEYSTORE`/`KS_ALIAS`/`KS_PASS` are set. Use the same key every time or upgrades will be refused.
 
 ## Test off the car
 With no `com.xbs.canapp` on the device (emulator), or with **Apps & settings → Advanced → Demo data** on, it plays a 40 s simulated drive (park, drive off, indicate, regen, reverse with sensors) and shows a **DEMO DATA** badge. The demo never triggers the real camera.
@@ -69,6 +70,7 @@ adb shell appops set com.xbs.launcher SYSTEM_ALERT_WINDOW allow   # lets the Dri
 - **Autopilot** (`autodrivermode`, code 9, = Autosteer): the lane under the car fades to blue and the lane lines turn light blue; Apps & settings → Car → **Rainbow road on Autopilot** swaps the blue for perspective colour bands that flow with the road (their colour fades out where they get too thin to draw, so the far end is a soft glow rather than flicker). The follow-distance setting (`cardistance`) shows on a backing under the car. The feed has **no set-speed field**, and cruise-only (TACC) isn't flagged.
 - **Parking sensors:** coloured arcs front and rear (they fade in and out), and a red STOP octagon above the fan when an obstacle is very close. While parked they also show on the right-hand card, so they stay visible when the camera takes the centre.
 - **Badges** at the top of the centre: only things that need attention (doors open, waiting for car data, problems, demo).
+- **No stale data:** if the car is moving and nothing at all arrives from the CAN app for 8 s (`DashApp.STALE_MS`, about 3× the longest gap in real drive captures), the dash clears speed, gear and lights, shows **NO CAR DATA, RECONNECTING** until live data returns, and subscribes again (unregister, register). If the feed drops while the stock camera is up, a pending camera open is dropped but the camera is not closed blind (the car might be in Reverse); it closes on the next live flag.
 - Undo: these are drawing-only; reverting the commits restores the plain side/rear renders.
 
 ## Left panel and warnings
@@ -121,5 +123,6 @@ One wide screen (`HubActivity`), compact cards, tabs with icons down one side (�
 | `src/.../LocalShell.java` | the fixed list of on-unit shell commands (End CarPlay, BT auto-connect) |
 | `src/.../StockScreens.java` | reads the CarPlay layout setting |
 | `tests/` | tyre-pressure and battery decoding tests, run by `build.sh` |
-| `tools/check_readonly.sh` | build-time read-only guard |
+| `tools/check_readonly.sh`, `tools/check_bytecode.sh` | build-time read-only guards (source; compiled classes and APK) |
+| `tools/test_guards.sh` | checks the guards (app and logger) still refuse known bypasses |
 | `testing/fakecan/` | emulator-only fake CAN service for testing the real feed path |

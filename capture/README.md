@@ -5,7 +5,7 @@ A small separate Android app that records the car data the head unit publishes, 
 ## What it records, and what it doesn't
 - **Records:** every field the stock CAN service (`com.xbs.canapp`) publishes, codes 0–127 (speed, gear, doors, battery, lights, tyre pressures, odometer and so on), with timestamps.
 - **Never records location.** It has no location permission.
-- **Never sends anything to the car.** It only registers, receives and unregisters (IMcuService transactions 1 and 2), and the build refuses anything else.
+- **Never sends anything to the car.** It only registers, receives and unregisters (IMcuService transactions 1 and 2), and the build refuses anything else: `tools/check_readonly.sh` checks the source and manifest (no internet, location or settings permissions), `tools/check_bytecode.sh` the compiled classes and APK (`app/tools/test_guards.sh` tests both).
 
 ## Where the logs go, and for how long
 - In the app's **private storage** (`/data/data/app.binnacle.logger/files/logs/`), not on `/sdcard`, so other apps can't read them.

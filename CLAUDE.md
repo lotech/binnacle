@@ -1,6 +1,6 @@
 # Binnacle — context for Claude
 
-> **ABSOLUTE RULE — RECEIVE ONLY.** Nothing in this project ever sends anything to the car's CAN bus or the MCU. The dash app only *subscribes* to the stock CAN service and *receives* data. This is enforced in code (one class, two allowed binder calls: subscribe/unsubscribe) and by a build-time guard (`app/tools/check_readonly.sh`) that refuses to build if any write path is referenced. Never weaken or bypass it.
+> **ABSOLUTE RULE — RECEIVE ONLY.** Nothing in this project ever sends anything to the car's CAN bus or the MCU. The dash app only *subscribes* to the stock CAN service and *receives* data. This is enforced in code (one class, two allowed binder calls: subscribe/unsubscribe) and by build-time guards that refuse to build if any write path is referenced: `app/tools/check_readonly.sh` on the source and `app/tools/check_bytecode.sh` on the compiled classes and APK (the logger has its own pair in `capture/tools/`; `app/tools/test_guards.sh` checks that the guards still refuse known bypasses). Never weaken or bypass them.
 
 A read-only replacement instrument cluster / dashboard app (plus tooling) for the **Carview 10.25" Tesla Model 3/Y Android cluster** (ZIQI "A007" ROM). It shows live car data taken from the stock CAN app and launches CarPlay / Android Auto / the camera, running as an alternative Home app. It never modifies the stock system.
 
