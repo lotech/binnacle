@@ -64,7 +64,7 @@ grep -q 'File root = c.getExternalFilesDir(null);' src/app/binnacle/CarPacks.jav
 for f in $(grep -rlE 'HttpURLConnection|HttpsURLConnection|new URL\(|openConnection|URLConnection' src); do
   [ "$f" = "src/app/binnacle/CarPacks.java" ] || bad "network access outside CarPacks: $f"
 done
-grep -qF 'RELEASE_BASE = "https://github.com/lotech/binnacle/releases/download/cars-v1/";' src/app/binnacle/CarPacks.java || bad "CarPacks download source changed"
+grep -qF 'RELEASE_BASE = "https://github.com/lotech/binnacle/releases/download/cars-v2/";' src/app/binnacle/CarPacks.java || bad "CarPacks download source changed"
 [ "$(grep -c 'new URL(' src/app/binnacle/CarPacks.java)" = 1 ] && grep -qF 'new URL(RELEASE_BASE + packName(hand, colour))' src/app/binnacle/CarPacks.java || bad "CarPacks may only fetch RELEASE_BASE + packName"
 grep -nE 'setRequestMethod|setDoOutput|getOutputStream' src/app/binnacle/CarPacks.java && bad "CarPacks may only download (GET), never send (above)"
 

@@ -15,7 +15,7 @@ import java.util.zip.ZipInputStream;
 /**
  * Downloads car colour packs (renders for one model, colour and driving side) from this project's
  * GitHub release, over Wi-Fi, into the app's own files dir where CarArt looks first:
- * files/<hand>/teshila_car_<colour>/. "hand" names the set: rhd / lhd for the Model 3, y-rhd /
+ * files/<hand>/<colour>/. "hand" names the set: rhd / lhd for the Model 3, y-rhd /
  * y-lhd for the Model Y (see HANDS). Only the Model 3 in silver is bundled in the APK.
  *
  * Fixed source: RELEASE_BASE + "binnacle-cars-<hand>-<colour>.zip" (the guard pins both), HTTPS
@@ -24,7 +24,7 @@ import java.util.zip.ZipInputStream;
  * touches the car.
  */
 final class CarPacks {
-    static final String RELEASE_BASE = "https://github.com/lotech/binnacle/releases/download/cars-v1/";
+    static final String RELEASE_BASE = "https://github.com/lotech/binnacle/releases/download/cars-v2/";
     /** Model 3 right / left-hand drive, then Model Y right / left. */
     static final String[] HANDS = {"rhd", "lhd", "y-rhd", "y-lhd"};
     /** Same order as the car's carcolor value. */
@@ -52,19 +52,19 @@ final class CarPacks {
 
     static File packDir(Context c, String hand, String colour) {
         File root = c.getExternalFilesDir(null);
-        return root == null ? null : new File(new File(root, hand), "teshila_car_" + colour);
+        return root == null ? null : new File(new File(root, hand), colour);
     }
 
     /** True if a downloaded pack for this colour and side is present. */
     static boolean downloaded(Context c, String hand, String colour) {
         File d = packDir(c, hand, colour);
-        return d != null && new File(d, "car/teshila_car_bg(0).png").isFile();
+        return d != null && new File(d, "turn/0.png").isFile();
     }
 
     /** True if the APK bundles this colour and side. */
     static boolean bundled(Context c, String hand, String colour) {
         try {
-            String[] list = c.getAssets().list("cars/" + hand + "/teshila_car_" + colour);
+            String[] list = c.getAssets().list("cars/" + hand + "/" + colour);
             return list != null && list.length > 0;
         } catch (IOException e) {
             return false;
@@ -132,7 +132,7 @@ final class CarPacks {
         } finally {
             http.disconnect();
         }
-        if (!new File(tmp, "car/teshila_car_bg(0).png").isFile()) {
+        if (!new File(tmp, "turn/0.png").isFile()) {
             deleteTree(tmp);
             throw new IOException("pack incomplete");
         }
@@ -148,6 +148,20 @@ final class CarPacks {
         if (downloading(hand, colour)) return;
         File d = packDir(c, hand, colour);
         if (d != null) deleteTree(d);
+    }
+
+    /**
+     * Deletes packs downloaded in the old layout (files/<hand>/teshila_car_<colour>/, from the
+     * cars-v1 release), which nothing reads any more. Only folders with that prefix are touched.
+     */
+    static void removeLegacy(Context c) {
+        File root = c.getExternalFilesDir(null);
+        if (root == null) return;
+        for (String hand : HANDS) {
+            File[] kids = new File(root, hand).listFiles();
+            if (kids == null) continue;
+            for (File k : kids) if (k.isDirectory() && k.getName().startsWith("teshila_car_")) deleteTree(k);
+        }
     }
 
     /** True if f is inside dir (no "..", absolute paths or links out). */
