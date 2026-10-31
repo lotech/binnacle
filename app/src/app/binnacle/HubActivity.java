@@ -265,12 +265,7 @@ public class HubActivity extends Activity {
                     switchCard("Show raw CAN values", "Latest raw fields over the centre view, for in-car checks", "raw_overlay", false),
                     switchCard("Demo data", "Simulated drive instead of the car feed", "demo", false),
                     loggerCards(),
-                    stack(resetCard(), infoCard("About", "Binnacle, a read-only dash for this unit. Made by Lotech.\n"
-                            + "github.com/lotech/binnacle\n"
-                            + "Model 3: 3D car model by Ameer Studio (Sketchfab), CC BY 4.0, modified "
-                            + "(recoloured, mirrored for right-hand drive, posed, rendered).\n"
-                            + "Model Y: based on \"2021 Tesla Model Y\" by tonielpro520 (Sketchfab), CC BY 4.0, modified "
-                            + "(recoloured, doors separated and hinged, mirrored for right-hand drive, posed, rendered).")))); break;
+                    stack(resetCard(), aboutCard()))); break;
         }
         final ScrollView sv = pageScroll();
         if (keepScroll > 0 && sv != null) {
@@ -1002,6 +997,58 @@ public class HubActivity extends Activity {
         bg.addState(new int[]{}, card.getBackground());
         card.setBackground(bg);
         return card;
+    }
+
+    /** About: who made it and where it lives; the button opens the full About pop-up. */
+    private View aboutCard() {
+        LinearLayout card = card("About", "Binnacle " + versionName() + " · Made by Lotech");
+        TextView b = chip("About Binnacle");
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showAbout(); }
+        });
+        card.addView(b, new LinearLayout.LayoutParams(dp(220), dp(BUTTON_DP)));
+        return card;
+    }
+
+    private String versionName() {
+        try {
+            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            return "";
+        }
+    }
+
+    /**
+     * About pop-up: the app, this unit (read from Android only: nothing is asked of the car or the
+     * MCU, and no serial numbers are shown) and the 3D model credits.
+     */
+    private void showAbout() {
+        DashApp app = DashApp.get(this);
+        String installed = "";
+        try {
+            long t = getPackageManager().getPackageInfo(getPackageName(), 0).lastUpdateTime;
+            installed = ", installed " + new java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.UK).format(new java.util.Date(t));
+        } catch (PackageManager.NameNotFoundException ignored) {
+            // no date
+        }
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        String feed = app.feedProblem() == null ? "receiving" : app.feedProblem();
+        String logger = !app.loggerInstalled() ? "not installed" : app.loggerRecording() ? "installed, recording" : "installed";
+        String text = "Binnacle " + versionName() + installed + "\n"
+                + "Made by Lotech · github.com/lotech/binnacle\n"
+                + "A read-only dash: it only listens to the car and never sends anything to it.\n\n"
+                + "This unit\n"
+                + "Android " + android.os.Build.VERSION.RELEASE + " (API " + android.os.Build.VERSION.SDK_INT + ")\n"
+                + "Firmware " + android.os.Build.DISPLAY + "\n"
+                + "Board " + android.os.Build.BOARD + " · " + android.os.Build.HARDWARE + "\n"
+                + "Screen " + dm.widthPixels + " × " + dm.heightPixels + " at " + dm.densityDpi + " dpi\n"
+                + "Car data: " + feed + " · Drive logger: " + logger + "\n\n"
+                + "3D models (CC BY 4.0, modified)\n"
+                + "Model 3: \"Tesla 2018 Model 3\" by Ameer Studio (Sketchfab)\n"
+                + "Model Y: \"2021 Tesla Model Y\" by tonielpro520 (Sketchfab)";
+        BinnacleDialog.show(this, "About Binnacle", text, true, new String[]{"Close"}, true, new BinnacleDialog.Choice() {
+            @Override public void chosen(int index) { }
+        });
     }
 
     /** Cards one under another in a single grid cell, with the same gap as between grid cells. */
