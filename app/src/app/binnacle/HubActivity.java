@@ -212,9 +212,10 @@ public class HubActivity extends Activity {
         for (int t = 0; t < tabViews.size(); t++) {
             TextView v = tabViews.get(t);
             v.setSelected(t == i);
-            v.setTextColor(t == i ? Style.FG : Style.MUTED);
+            int colour = t == i ? 0xffffffff : Style.MUTED;     // white on the blue selected fill
+            v.setTextColor(colour);
             if (android.os.Build.VERSION.SDK_INT >= 23)        // icon in the same colour as its label
-                v.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(t == i ? Style.FG : Style.MUTED));
+                v.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(colour));
         }
         content.removeAllViews();
         switch (i) {
@@ -900,7 +901,7 @@ public class HubActivity extends Activity {
         t.setPadding(dp(16), 0, dp(12), 0);
         t.setFocusable(true);
         t.setClickable(true);
-        t.setBackground(states(Style.PANEL, Style.PANEL2, Style.LINE, 10));
+        t.setBackground(states(Style.PANEL, 0xff1f5b80, Style.LINE, 10));   // selected: the same blue as a selected button
         return t;
     }
 
