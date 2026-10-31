@@ -1,11 +1,17 @@
 #!/bin/bash
-# Builds build/BinnacleLogger.apk (no Gradle). Same tools and debug key as app/build.sh.
+# Builds build/BinnacleLogger.apk (no Gradle). Same tools and key as app/build.sh: the dash and the
+# logger share a signature permission, so they must be signed with the same key. RELEASE=1 signs
+# with the release key (apksigner asks for its password).
 set -euo pipefail
 cd "$(dirname "$0")"
 SDK="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 BT="$SDK/build-tools/$(ls "$SDK/build-tools" | sort -V | tail -1)"
 JAR="$SDK/platforms/$(ls "$SDK/platforms" | sort -V | tail -1)/android.jar"
-KEYSTORE="${KEYSTORE:-$HOME/.android/debug.keystore}"
+if [ -n "${RELEASE:-}" ]; then
+    KEYSTORE="${KEYSTORE:-$HOME/.android/binnacle-release.jks}"; KS_ALIAS="${KS_ALIAS:-binnacle}"
+else
+    KEYSTORE="${KEYSTORE:-$HOME/.android/debug.keystore}"; KS_ALIAS="${KS_ALIAS:-androiddebugkey}"
+fi
 OUT=build
 # receive-only: the only binder calls allowed are IMcuService register (1) and unregister (2)
 if perl -ne 'print "$ARGV:$.: $_" if /\.transact\((?![12],)/' $(find src -name '*.java') | grep .; then echo "refusing: unexpected transact()"; exit 1; fi
@@ -17,5 +23,9 @@ javac -Xlint:-options -source 8 -target 8 -encoding UTF-8 -bootclasspath "$JAR" 
 "$BT/d8" --min-api 21 --release --lib "$JAR" --output "$OUT" $(find "$OUT/classes" -name '*.class')
 (cd "$OUT" && zip -q unsigned.apk classes.dex)
 "$BT/zipalign" -f -p 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
-"$BT/apksigner" sign --ks "$KEYSTORE" --ks-key-alias androiddebugkey --ks-pass pass:android --out "$OUT/BinnacleLogger.apk" "$OUT/aligned.apk"
+if [ -n "${RELEASE:-}" ]; then
+    "$BT/apksigner" sign --ks "$KEYSTORE" --ks-key-alias "$KS_ALIAS" --out "$OUT/BinnacleLogger.apk" "$OUT/aligned.apk"
+else
+    "$BT/apksigner" sign --ks "$KEYSTORE" --ks-key-alias "$KS_ALIAS" --ks-pass pass:android --out "$OUT/BinnacleLogger.apk" "$OUT/aligned.apk"
+fi
 echo "built $OUT/BinnacleLogger.apk"

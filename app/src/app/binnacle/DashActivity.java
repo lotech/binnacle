@@ -81,47 +81,15 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
         root.addView(right, new LinearLayout.LayoutParams(0, -1, Style.SIDE_W));
         setContentView(root);
         // no storage permission: the car renders are bundled (or in this app's own files dir)
-        firstStartQuestions();
     }
 
     /**
-     * First start: which car (Model 3 or Y), then which side the steering wheel is on. Each is asked
-     * again next start if dismissed, and changeable later in Apps & settings -> Display.
+     * First start: the setup wizard (SetupActivity), until it has been finished or skipped once.
+     * Checked on every resume: picking Binnacle in Android's Home list brings the dash (a singleTask
+     * Home activity) to the front over the wizard, which then carries on from where it was.
      */
     private void firstStartQuestions() {
-        if (!app.prefs().contains("car_model")) askCarModel();
-        else if (!app.prefs().contains("drive_side")) askDriveSide();
-    }
-
-    /** Model Y pictures aren't bundled: picking it downloads them (DashApp.fetchModelYPack). */
-    private void askCarModel() {
-        BinnacleDialog.show(this, "Welcome to Binnacle", "Which car is this?\nOther colours download from GitHub (about 10 MB).",
-                new String[]{"Model 3", "Model Y"}, true, new BinnacleDialog.Choice() {
-                    @Override public void chosen(int index) {
-                        app.prefs().edit().putString("car_model", index == 1 ? "y" : "3").apply();
-                        if (!app.prefs().contains("drive_side")) askDriveSide();
-                    }
-                });
-    }
-
-    /**
-     * Which side the steering wheel is on (car renders, and the settings menu goes on the driver's
-     * side unless already chosen).
-     */
-    private void askDriveSide() {
-        final android.content.SharedPreferences p = app.prefs();
-        BinnacleDialog.show(this, "Driving side", "Which side is your steering wheel on?",
-                new String[]{"Left", "Right"}, true, new BinnacleDialog.Choice() {
-                    @Override public void chosen(int index) {
-                        if (index == 0) setDriveSide(p, "lhd", "left"); else setDriveSide(p, "rhd", "right");
-                    }
-                });
-    }
-
-    private static void setDriveSide(android.content.SharedPreferences p, String side, String menu) {
-        android.content.SharedPreferences.Editor e = p.edit().putString("drive_side", side);
-        if (!p.contains("menu_side")) e.putString("menu_side", menu);
-        e.apply();
+        if (!SetupActivity.done(app.prefs())) SetupActivity.start(this);
     }
 
     @Override public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
@@ -169,6 +137,7 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
 
     @Override protected void onResume() {
         super.onResume();
+        firstStartQuestions();
         resumed = true;
         lastFrontCam = app.car.frontCamRequest;     // seed the edge detector with the current state
         if (!dashCamera()) return;

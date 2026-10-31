@@ -43,6 +43,15 @@ On a ship, the binnacle is the stand in front of the helm that holds the compass
 - Installed Navigation apps in the centre of the screen with access to Cached data.
 - Improved design with more options for centre screen.
 
+## Install
+No computer or adb needed for the basics.
+1. Download the latest `Binnacle-<version>.apk` from this project's [Releases](https://github.com/lotech/binnacle/releases).
+2. Copy it to a USB stick, plug the stick into the unit, open it in the unit's file manager and tap the APK. Android asks once to allow installing apps from the file manager.
+3. Open **Binnacle**. The setup wizard asks about your car (model, steering-wheel side, colour), offers to make Binnacle the Home app, and asks for the compass (location) and in-dash camera. Any step can be skipped; **Apps → Advanced → Run setup** shows it again.
+4. Optional extras that hide the stock camera screen and stock pop-ups need a one-time change on the unit itself: see `docs/UNIT-CHANGES.md` (and `docs/ADB-GUIDE.md` for network ADB). **End CarPlay** and **Bluetooth auto-connect** also use network ADB; without it, End CarPlay opens Android's Wi-Fi screen instead.
+
+To remove it: **Apps → Advanced → Remove Binnacle**. The stock dash was never removed and comes straight back.
+
 ## The hardware (what the listings don't tell you)
 Sold as an "Android 12" 10.25" cluster for the Model 3 and Model Y under several brands. Inside, it's a ZIQI "A007" board.
 
