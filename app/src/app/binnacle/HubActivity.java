@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.provider.Settings;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
@@ -210,6 +211,7 @@ public class HubActivity extends Activity {
         switch (i) {
             case 0: content.addView(appsGrid()); break;
             case 1: content.addView(cards(          // most used first; the rest below the fold
+                    homeCard(),
                     choiceCard("Theme", "Auto: follows the car's screen", "theme", "dark",
                             new String[]{"auto", "light", "dark"}, new String[]{"Auto", "Light", "Dark"}),
                     choiceCard("Text size", null, "text_size", "100",
@@ -495,6 +497,44 @@ public class HubActivity extends Activity {
         });
         card.addView(b, new LinearLayout.LayoutParams(dp(150), dp(BUTTON_DP)));
         return card;
+    }
+
+    /**
+     * Whether Binnacle is the Home app, and a Set as Default button that opens Android's own Home
+     * app picker (an app can't make itself the default). The Display tab is rebuilt on return
+     * (onResume), so the card shows the new state.
+     */
+    private View homeCard() {
+        final boolean isDefault = isDefaultHome();
+        LinearLayout card = card("Home app", isDefault ? "Binnacle is the default dash"
+                : "Make Binnacle the dash the unit opens (the stock dash stays installed)");
+        TextView b = chip(isDefault ? "Default" : "Set as Default");
+        b.setSelected(isDefault);
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { openHomePicker(); }
+        });
+        card.addView(b, new LinearLayout.LayoutParams(dp(200), dp(BUTTON_DP)));
+        return card;
+    }
+
+    private boolean isDefaultHome() {
+        Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
+        ResolveInfo ri = getPackageManager().resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY);
+        return ri != null && ri.activityInfo != null && getPackageName().equals(ri.activityInfo.packageName);
+    }
+
+    /** Android's Home app setting, else the default-apps screen, else Settings itself. */
+    private void openHomePicker() {
+        String[] actions = {Settings.ACTION_HOME_SETTINGS, Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS, Settings.ACTION_SETTINGS};
+        for (String a : actions) {
+            try {
+                startActivity(new Intent(a).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (RuntimeException ignored) {
+                // not on this ROM: try the next
+            }
+        }
+        Toast.makeText(this, "Couldn't open the Home app setting", Toast.LENGTH_LONG).show();
     }
 
     private View switchCard(String title, String summary, final String key, boolean def) {
