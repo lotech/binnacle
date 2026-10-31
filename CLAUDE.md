@@ -22,6 +22,14 @@ The app only ever **registers and receives**. It must **never** call the write/t
 
 No bytes ever go to the MCU or the vehicle CAN bus.
 
+## Dash-local writes (owner rule, 31 Oct 2026)
+The absolute line is the car: nothing ever reaches the CAN bus, the MCU or the canapp write side, and the guards above stay as strict as they are. Changes that stay **on the dash itself** (an Android setting, a system property, another app's component or app-op, a file in the app's own storage) are allowed, but only when:
+- the owner has approved that specific change;
+- it is pinned in the guards (a fixed `LocalShell` command, or an exact allow-list entry), never built from caller text;
+- it is opt-in for users, says what it does, and can be undone from the app;
+- it is listed with its undo in `docs/UNIT-CHANGES.md`.
+Approved so far: Bluetooth auto-connect (`settings put system xbs_isautoconnect`, via `LocalShell`) and End CarPlay (Wi-Fi off/on, via `LocalShell`). Anything the CAN app forwards to the MCU (backlight mode, speaker level, ambient light, camera type/trigger, night mode) stays off-limits however it is reached.
+
 ## Must-keep features — never break these
 - **Forward/reverse camera**: separate app `com.xbs.frontcam`, activity `com.xbs.frontcam.CameraActivity` (also responds to intent `com.xbs.action.reqcam`). Auto-shows on Drive via the CAN `frontcamstate` flag — a replacement Home re-does that (watch the flag, launch the camera). Independent of the Home app otherwise.
 - **CarPlay / Android Auto** via ZLink (`com.zjinnova.zlink`) — the licensed *xinbasi-a007* build. Launch by intent; do not replace it.
@@ -30,12 +38,12 @@ No bytes ever go to the MCU or the vehicle CAN bus.
 ## ADB / network facts
 - `adb connect <unit-ip>:5555` (persistent, no key auth on the LAN).
 - **Single Wi-Fi radio**: wireless CarPlay brings up a SoftAP that drops the dash off home Wi-Fi, so ADB over the LAN dies while wireless CarPlay is connected.
-- **Android Bluetooth stack is OFF** — BT is a separate Goodocom serial module, so there is no Android BLE radio (BLE apps won't find one).
+- **Android Bluetooth stack is OFF by default**: Bluetooth calls and audio go through a separate Goodocom serial module. Setting `persist.car.use_system_bt=2` (dash-local, then reboot) turns Android Bluetooth on alongside it, with Bluetooth LE; on trial on the owner's unit since 31 Oct.
 - Not in the data feed: **true range (km)** and **brake/stop-light state**. On this car `batterylevel` is stuck at 77, so the dash decodes the battery % from code 11 `jhmail` instead (`BatteryDecoder`, a table recorded during a 13% → 100% Supercharge on 30 Oct; see docs/FIELD_MAP.md).
 
 ## Local shell (LocalShell)
 - The unit's own ADB daemon listens on all interfaces at 5555 with no auth, so the app reaches it on 127.0.0.1 and runs a **fixed** list of shell-user (not root) commands, e.g. End CarPlay = `svc wifi disable && sleep 2 && svc wifi enable && echo BINNACLE_OK` (run() requires the marker) (never force-stop ZLink: it breaks the Goodocom Bluetooth until a reboot).
-- `check_readonly.sh` pins the exact command list, keeps sockets in `LocalShell` only, and forbids caller-supplied text. Never add a command that touches the car, MCU, CAN, settings, properties or `su`.
+- `check_readonly.sh` pins the exact command list, keeps sockets in `LocalShell` only, and forbids caller-supplied text. Never add a command that touches the car, the MCU or CAN. A dash-local setting or property is added only under the "Dash-local writes" rule above (owner approval, pinned, opt-in, reversible, documented).
 
 ## Steering-wheel input
 `canapp` injects **standard Android KeyEvents** from the MCU. Scroll up/down = `DPAD_UP`(19)/`DPAD_DOWN`(20); right tilt (OK) = `ENTER`(66); left tilt = `BACK`(4); plus volume/media/home. Handle with normal `onKeyDown` / focus navigation — no special integration.

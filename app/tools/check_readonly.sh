@@ -1,5 +1,7 @@
 #!/bin/bash
 # ABSOLUTE RULE: this app never sends anything to the CAN bus or the MCU. It only receives.
+# Dash-local writes (a setting or property on the unit itself) are allowed only when the owner has
+# approved that exact change, and only as a pinned LocalShell command below (CLAUDE.md).
 # This guard runs before every build (build.sh) and fails it if the source could write to the car.
 set -uo pipefail
 cd "$(dirname "$0")/.."
