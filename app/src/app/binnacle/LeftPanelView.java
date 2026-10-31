@@ -54,18 +54,18 @@ public class LeftPanelView extends View {
         drawStatusRow(c, cx, 84);
 
         // speed group, vertically centred between the status row and the power bar
-        String speed = car.speed < 0 ? "--" : String.valueOf(car.speed);
+        DashApp app = DashApp.get(getContext());
+        String speed = car.speed < 0 ? "--" : String.valueOf(Units.speed(app, car.speed));
         speedP.setColor(car.speed < 0 ? Style.DIM : Style.FG);
         Style.size(speedP, Style.T_SPEED);
         Style.fit(speedP, speed, w - 40);
         c.drawText(speed, cx, 296, speedP);
         Style.size(unitP, Style.T_UNIT);
-        c.drawText(car.speedUnit.toLowerCase().contains("m") && !car.speedUnit.toLowerCase().contains("k")
-                ? "MPH" : "KM / H", cx, 330, unitP);
+        c.drawText(Units.speedLabel(app), cx, 330, unitP);
         drawGears(c, cx, 398);
         drawTurn(c, cx - 52, 438, true, car.turnLeft);
         drawTurn(c, cx + 52, 438, false, car.turnRight);
-        if (car.speedLimit > 0) drawLimit(c, cx, 520, car.speedLimit);
+        if (car.speedLimit > 0) drawLimit(c, cx, 520, Units.speedLimit(app, car.speedLimit));
 
         drawPower(c, w);
         c.restore();
