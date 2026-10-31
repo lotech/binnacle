@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="app.binnacle"
-    android:versionCode="1" android:versionName="0.1">
+    android:versionCode="5" android:versionName="0.5">
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="29" />
 
     <!-- READ-ONLY: lets us RECEIVE the stock CAN feed (protectionLevel normal). Nothing is ever sent. -->
