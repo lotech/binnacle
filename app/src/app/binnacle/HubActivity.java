@@ -730,9 +730,51 @@ public class HubActivity extends Activity {
         int reported = DashApp.get(this).car.carColour;
         String summary = reported >= 0 && reported < CarPacks.COLOURS.length
                 ? "Auto: " + colourName(CarPacks.COLOURS[reported]) + ", from the car" : "Auto: from the car (not reported yet)";
-        return choiceCard("Car colour", summary, "car_colour", "auto",
-                new String[]{"auto", "0", "1", "2", "3", "4"},
-                new String[]{"Auto", "White", "Red", "Blue", "Black", "Grey"});
+        LinearLayout card = card("Car colour", summary);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        final String current = prefs.getString("car_colour", "auto");
+        final List<View> buttons = new ArrayList<>();
+        // Auto first and wider (what most people want), then a swatch per paint, in carcolor order
+        String[] values = {"auto", "0", "1", "2", "3", "4"};
+        for (int i = 0; i < values.length; i++) {
+            final String value = values[i];
+            final View b;
+            if (i == 0) {
+                b = chip("Auto");
+            } else {
+                b = new View(this);
+                b.setFocusable(true);
+                b.setClickable(true);
+                b.setContentDescription(colourName(CarPacks.COLOURS[i - 1]));
+                b.setBackground(swatch(PAINT[i - 1]));
+            }
+            b.setSelected(value.equals(current));
+            b.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    prefs.edit().putString("car_colour", value).apply();
+                    for (View o : buttons) o.setSelected(o == v);
+                }
+            });
+            buttons.add(b);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(i == 0 ? 0 : dp(BUTTON_DP), dp(BUTTON_DP), i == 0 ? 1 : 0);
+            lp.setMargins(i == 0 ? 0 : dp(10), 0, 0, 0);
+            row.addView(b, lp);
+        }
+        card.addView(row);
+        return card;
+    }
+
+    /** Paint swatches in carcolor order: white, red, blue, black, dark grey (silver). */
+    private static final int[] PAINT = {0xfff2f2f0, 0xffb3202a, 0xff1f4f9f, 0xff121314, 0xff4b4f55};
+
+    /** A round-cornered paint swatch: a thin outline at rest, a thick accent ring when chosen or focused. */
+    private Drawable swatch(int paint) {
+        StateListDrawable s = new StateListDrawable();
+        s.addState(new int[]{android.R.attr.state_selected}, shape(paint, Style.ACCENT, 12, 4));
+        s.addState(new int[]{android.R.attr.state_focused}, shape(paint, Style.ACCENT, 12, 3));
+        s.addState(new int[]{}, shape(paint, Style.LINE, 12, 1));
+        return s;
     }
 
     /** The car colour the Car images card was built for (-1: not reported yet). */
