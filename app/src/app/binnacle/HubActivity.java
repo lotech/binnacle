@@ -247,7 +247,7 @@ public class HubActivity extends Activity {
                     choiceCard("Tyre pressure", null, "tyre_unit", "psi",
                             new String[]{"psi", "bar"}, new String[]{"psi", "bar"}),
                     stepperCard("Range at 100%", "For the km estimate under the battery %", "full_range_km", 410, 150, 700, 5, "km"),
-                    switchCard("Rainbow road on Autopilot", null, "autopilot_rainbow", false))); break;
+                    pairCard("Autopilot indication", "autopilot_rainbow", "Normal", "Rainbow road"))); break;
             default: content.addView(cards(
                     switchCard("Show raw CAN values", "Latest raw fields over the centre view, for in-car checks", "raw_overlay", false),
                     switchCard("Demo data", "Simulated drive instead of the car feed", "demo", false),
@@ -658,6 +658,32 @@ public class HubActivity extends Activity {
         Intent dash = getPackageManager().getLaunchIntentForPackage(getPackageName());
         if (dash != null) startActivity(dash.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
         System.exit(0);   // the activity start brings the process back with fresh settings
+    }
+
+    /** Two named choices for an on/off setting (off = first label), shown like the other choice cards. */
+    private View pairCard(String title, final String key, String offLabel, String onLabel) {
+        LinearLayout card = card(title, null);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        boolean on = prefs.getBoolean(key, false);
+        final TextView off = chip(offLabel), yes = chip(onLabel);
+        off.setSelected(!on);
+        yes.setSelected(on);
+        View.OnClickListener pick = new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                prefs.edit().putBoolean(key, v == yes).apply();
+                off.setSelected(v == off);
+                yes.setSelected(v == yes);
+            }
+        };
+        off.setOnClickListener(pick);
+        yes.setOnClickListener(pick);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(BUTTON_DP), 1);
+        lp.setMargins(0, 0, dp(12), 0);
+        row.addView(off, lp);
+        row.addView(yes, new LinearLayout.LayoutParams(0, dp(BUTTON_DP), 1));
+        card.addView(row);
+        return card;
     }
 
     private View switchCard(String title, String summary, final String key, boolean def) {
