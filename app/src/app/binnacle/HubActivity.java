@@ -265,12 +265,11 @@ public class HubActivity extends Activity {
                     switchCard("Show raw CAN values", "Latest raw fields over the centre view, for in-car checks", "raw_overlay", false),
                     switchCard("Demo data", "Simulated drive instead of the car feed", "demo", false),
                     loggerCards(),
-                    resetCard(),
-                    infoCard("About", "Binnacle, a read-only dash for this unit.\n"
+                    stack(resetCard(), infoCard("About", "Binnacle, a read-only dash for this unit.\n"
                             + "Model 3: 3D car model by Ameer Studio (Sketchfab), CC BY 4.0, modified "
                             + "(recoloured, mirrored for right-hand drive, posed, rendered).\n"
                             + "Model Y: based on \"2021 Tesla Model Y\" by tonielpro520 (Sketchfab), CC BY 4.0, modified "
-                            + "(recoloured, doors separated and hinged, mirrored for right-hand drive, posed, rendered)."))); break;
+                            + "(recoloured, doors separated and hinged, mirrored for right-hand drive, posed, rendered).")))); break;
         }
         final ScrollView sv = pageScroll();
         if (keepScroll > 0 && sv != null) {
@@ -568,22 +567,21 @@ public class HubActivity extends Activity {
      * location-recording logger, if present, is offered for removal.
      */
     private View loggerCards() {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
+        List<View> box = new ArrayList<>();
         if (installed(OLD_LOGGER_PKG)) {
-            box.addView(uninstallCard("Old drive logger found",
+            box.add(uninstallCard("Old drive logger found",
                     "An older logger that also recorded location. Uninstall it to delete its logs.", OLD_LOGGER_PKG));
         }
         if (installed(LOGGER_PKG)) {
-            box.addView(switchCard("Drive logger: start with the dash",
+            box.add(switchCard("Drive logger: start with the dash",
                     "Records car data, never location, to its own private storage; kept 7 days", "logger_autostart", false));
-            box.addView(uninstallCard("Remove drive logger", "Uninstalling also deletes all its logs", LOGGER_PKG));
+            box.add(uninstallCard("Remove drive logger", "Uninstalling also deletes all its logs", LOGGER_PKG));
         } else {
-            box.addView(infoCard("Drive logger (optional)", "A developer tool that records car data, never location. "
+            box.add(infoCard("Drive logger (optional)", "A developer tool that records car data, never location. "
                     + "Not installed, and Binnacle never installs it. To add it: adb install BinnacleLogger.apk "
                     + "from github.com/lotech/binnacle/releases"));
         }
-        return box;
+        return stack(box.toArray(new View[0]));
     }
 
     private boolean installed(String pkg) {
@@ -991,8 +989,30 @@ public class HubActivity extends Activity {
         return card;
     }
 
+    /**
+     * Text-only card. Focusable, with an accent outline when focused, so the steering wheel can
+     * reach it (and the page scrolls to it) even though it has no buttons.
+     */
     private View infoCard(String title, String body) {
-        return card(title, body);
+        LinearLayout card = card(title, body);
+        card.setFocusable(true);
+        StateListDrawable bg = new StateListDrawable();
+        bg.addState(new int[]{android.R.attr.state_focused}, shape(Style.PANEL, Style.ACCENT, 14, 3));
+        bg.addState(new int[]{}, card.getBackground());
+        card.setBackground(bg);
+        return card;
+    }
+
+    /** Cards one under another in a single grid cell, with the same gap as between grid cells. */
+    private View stack(View... cards) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        for (int i = 0; i < cards.length; i++) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(0, i == 0 ? 0 : dp(12), 0, 0);
+            box.addView(cards[i], lp);
+        }
+        return box;
     }
 
     private String carplayLayoutText() {
