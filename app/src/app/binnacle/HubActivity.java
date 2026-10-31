@@ -161,7 +161,7 @@ public class HubActivity extends Activity {
     private final DashApp.Listener themeListener = new DashApp.Listener() {
         @Override public void onCarChanged(int code) {
             if (code == DashApp.THEME_CHANGED && lightBuilt != Style.light) recreate();
-            if (code == DashApp.PACKS_CHANGED && tab == CAR_TAB) showTab(CAR_TAB);   // whichever Car pictures card is showing now
+            if (code == DashApp.PACKS_CHANGED && tab == CAR_TAB) showTab(CAR_TAB);   // whichever Car images card is showing now
             // the car reports its colour (code 9) after the card was built: rebuild it for that colour
             if (tab == CAR_TAB && packCardColour != DashApp.get(HubActivity.this).car.carColour) showTab(CAR_TAB);
         }
@@ -169,7 +169,7 @@ public class HubActivity extends Activity {
 
     private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
 
-    /** Car model or driving side changed: rebuild the Car tab so Car pictures shows (and fetches) that set. */
+    /** Car model or driving side changed: rebuild the Car tab so Car images shows (and fetches) that set. */
     private final SharedPreferences.OnSharedPreferenceChangeListener sideListener =
             new SharedPreferences.OnSharedPreferenceChangeListener() {
                 @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
@@ -197,7 +197,7 @@ public class HubActivity extends Activity {
         else if (tab >= 4) showTab(tab);                                   // back from the uninstaller: logger state
     }
 
-    /** The Car tab: car model, driving side, car pictures, tyres, range. */
+    /** The Car tab: car model, driving side, car images, tyres, range. */
     private static final int CAR_TAB = 3;
 
     private void showTab(int i) {
@@ -229,9 +229,9 @@ public class HubActivity extends Activity {
                     switchCard("Camera in the dash", "Forward camera in the centre window", "dash_camera", false),
                     switchCard("Open stock camera on Drive", "Stock camera screen instead", "auto_camera", false))); break;
             case CAR_TAB: content.addView(cards(
-                    choiceCard("Car model", "Which car pictures to show", "car_model", "3",
+                    choiceCard("Car model", "Which car images to show", "car_model", "3",
                             new String[]{"3", "y"}, new String[]{"Model 3", "Model Y"}),
-                    choiceCard("Driving side", "Which side the steering wheel is on (car pictures)", "drive_side", "rhd",
+                    choiceCard("Driving side", "Which side the steering wheel is on (car images)", "drive_side", "rhd",
                             new String[]{"lhd", "rhd"}, new String[]{"Left", "Right"}),
                     carPicturesCard(),
                     choiceCard("Units", "Auto: the same as the car", "units", "auto",
@@ -591,7 +591,7 @@ public class HubActivity extends Activity {
 
     /**
      * Reset settings: clears Binnacle's own settings (theme, car model, driving side, ...) and
-     * restarts the dash, so the first-start questions come back. Downloaded car pictures stay.
+     * restarts the dash, so the first-start questions come back. Downloaded car images stay.
      * Remove Binnacle: Android's uninstaller for this app; with Binnacle gone the unit falls
      * back to the stock dash, which was never removed. Both ask first.
      */
@@ -603,7 +603,7 @@ public class HubActivity extends Activity {
         reset.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 BinnacleDialog.show(HubActivity.this, "Reset settings?",
-                        "Binnacle's settings go back to how they started and the dash restarts.\nDownloaded car pictures are kept.",
+                        "Binnacle's settings go back to how they started and the dash restarts.\nDownloaded car images are kept.",
                         new String[]{"Cancel", "Reset"}, true, new BinnacleDialog.Choice() {
                             @Override public void chosen(int index) { if (index == 1) resetSettings(); }
                         });
@@ -613,7 +613,7 @@ public class HubActivity extends Activity {
         remove.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 BinnacleDialog.show(HubActivity.this, "Remove Binnacle?",
-                        "The unit goes back to the stock dash, which is still installed.\nBinnacle's settings and downloaded car pictures are deleted with it.",
+                        "The unit goes back to the stock dash, which is still installed.\nBinnacle's settings and downloaded car images are deleted with it.",
                         new String[]{"Cancel", "Remove"}, true, new BinnacleDialog.Choice() {
                             @Override public void chosen(int index) {
                                 if (index != 1) return;
@@ -698,10 +698,10 @@ public class HubActivity extends Activity {
      * LocalShell, since a normal app may not write Settings.System.
      */
     /**
-     * Car pictures for the car's colour (from the car) and the driving side: built in, downloaded,
+     * Car images for the car's colour (from the car) and the driving side: built in, downloaded,
      * or a Download button that fetches the pack from the project's GitHub release (CarPacks).
      */
-    /** The car colour the Car pictures card was built for (-1: not reported yet). */
+    /** The car colour the Car images card was built for (-1: not reported yet). */
     private int packCardColour = Integer.MIN_VALUE;
 
     private View carPicturesCard() {
@@ -709,7 +709,7 @@ public class HubActivity extends Activity {
         int c = app.car.carColour;
         packCardColour = c;
         if (c < 0) {                                   // not reported yet: don't guess a colour to fetch
-            LinearLayout card = card("Car pictures", "Waiting for the car to report its colour");
+            LinearLayout card = card("Car images", "Waiting for the car to report its colour");
             TextView wait = chip("…");
             wait.setEnabled(false);
             card.addView(wait, new LinearLayout.LayoutParams(dp(150), dp(BUTTON_DP)));
@@ -719,7 +719,7 @@ public class HubActivity extends Activity {
         final String hand = app.artSet();   // the tab rebuilds when the model or side changes
         String what = (app.modelY() ? "Model Y, " : "Model 3, ") + colour
                 + (hand.endsWith("lhd") ? ", left-hand drive" : ", right-hand drive");
-        final LinearLayout card = card("Car pictures", what);
+        final LinearLayout card = card("Car images", what);
         final TextView b = chip("…");
         final Runnable refresh = new Runnable() {
             @Override public void run() {

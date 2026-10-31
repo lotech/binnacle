@@ -316,7 +316,7 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
      * other colours download) fetches the pack for the car's colour and side from the project's
      * release once the car has reported its colour; until then, or if it fails, CarArt shows the
      * nearest it has. Tried once per run;
-     * Apps & settings → Car → Car pictures retries by hand.
+     * Apps & settings → Car → Car images retries by hand.
      */
     private void fetchModelYPack(int colour, final String hand) {
         if (!hand.startsWith("y-") || colour < 0 || colour >= CarPacks.COLOURS.length) return;
