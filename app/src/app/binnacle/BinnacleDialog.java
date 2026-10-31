@@ -66,7 +66,7 @@ final class BinnacleDialog {
             android.widget.ScrollView sv = new android.widget.ScrollView(a);
             sv.setScrollbarFadingEnabled(false);
             sv.addView(m);
-            box.addView(sv, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(a, 190)));
+            box.addView(sv, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(a, 150)));
         } else {
             box.addView(m);
         }

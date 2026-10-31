@@ -1038,7 +1038,7 @@ public class HubActivity extends Activity {
                 + "Made by Lotech · github.com/lotech/binnacle\n"
                 + "A read-only dash: it only listens to the car and never sends anything to it.\n\n"
                 + "This unit\n"
-                + "Android " + android.os.Build.VERSION.RELEASE + " (API " + android.os.Build.VERSION.SDK_INT + ")\n"
+                + androidVersion() + "\n"
                 + "Firmware " + android.os.Build.DISPLAY + "\n"
                 + "Board " + android.os.Build.BOARD + " · " + android.os.Build.HARDWARE + "\n"
                 + "Screen " + dm.widthPixels + " × " + dm.heightPixels + " at " + dm.densityDpi + " dpi\n"
@@ -1049,6 +1049,18 @@ public class HubActivity extends Activity {
         BinnacleDialog.show(this, "About Binnacle", text, true, new String[]{"Close"}, true, new BinnacleDialog.Choice() {
             @Override public void chosen(int index) { }
         });
+    }
+
+    /**
+     * The real Android version from the API level: this unit's firmware calls itself 12 (RELEASE)
+     * but is API 29, which is Android 10.
+     */
+    private static String androidVersion() {
+        int api = android.os.Build.VERSION.SDK_INT;
+        String[] names = {"8", "8.1", "9", "10", "11", "12", "12L", "13", "14", "15"};   // API 26..35
+        String real = api >= 26 && api - 26 < names.length ? names[api - 26] : "API " + api;
+        String label = android.os.Build.VERSION.RELEASE;
+        return "Android " + real + " (API " + api + ")" + (label.equals(real) ? "" : ", labelled " + label);
     }
 
     /** Cards one under another in a single grid cell, with the same gap as between grid cells. */
