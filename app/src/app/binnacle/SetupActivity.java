@@ -167,12 +167,12 @@ public final class SetupActivity extends Activity {
             card.setGravity(Gravity.CENTER);
             card.setFocusable(true);
             card.setClickable(true);
-            card.setPadding(dp(8), dp(6), dp(8), dp(6));
+            card.setPadding(dp(8), dp(16), dp(8), dp(8));     // room above the car
             card.setBackground(pictureCard());
             ImageView pic = new ImageView(this);
             pic.setImageBitmap(asset(dirs[m] + "/turn/0.png"));
             pic.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            card.addView(pic, new LinearLayout.LayoutParams(dp(200), dp(84)));
+            card.addView(pic, new LinearLayout.LayoutParams(dp(200), dp(74)));
             TextView name = text(names[m], 17, Style.FG);
             name.setGravity(Gravity.CENTER);
             card.addView(name, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -206,7 +206,7 @@ public final class SetupActivity extends Activity {
         // the note shares the row with the buttons: the screen is only ~360 dp tall
         LinearLayout foot = new LinearLayout(this);
         foot.setGravity(Gravity.CENTER_VERTICAL);
-        TextView note = text("Other colours, and the left-hand drive Model Y, download from GitHub (about 10 MB).", 13, Style.MUTED);
+        TextView note = text("Any car images that aren't built in download over Wi-Fi when needed.", 13, Style.MUTED);
         note.setPadding(0, dp(14), dp(16), 0);
         foot.addView(note, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         s.addView(foot);
@@ -223,10 +223,11 @@ public final class SetupActivity extends Activity {
     private View home() {
         final boolean isDefault = isDefaultHome();
         LinearLayout s = stepLayout("Open Binnacle when the unit starts",
-                isDefault ? "Binnacle is your Home app. The stock dash is still installed if you ever want it back "
+                isDefault ? "The stock dash is still installed if you ever want it back "
                         + "(Display → Home app, or Advanced → Remove Binnacle)."
                         : "Android shows its Home app list: pick Binnacle. The stock dash stays installed, and you can "
                         + "switch back the same way.");
+        if (isDefault) s.addView(tick("Binnacle is your Home app"));
         s.addView(buttons(isDefault ? new String[]{"Next"} : new String[]{"Not now", "Set as Default"},
                 isDefault ? new Runnable[]{new Runnable() { @Override public void run() { next(); } }}
                         : new Runnable[]{
@@ -239,8 +240,8 @@ public final class SetupActivity extends Activity {
         final boolean granted = granted(Manifest.permission.ACCESS_FINE_LOCATION);
         LinearLayout s = stepLayout("Compass",
                 "Shows the direction you're driving (N, NE, E …) from the unit's GPS. Binnacle uses location only for "
-                        + "this, keeps nothing and sends it nowhere."
-                        + (granted ? "\n\nAlready allowed." : ""));
+                        + "this, keeps nothing and sends it nowhere.");
+        if (granted) s.addView(tick("Already allowed"));
         s.addView(buttons(granted ? new String[]{"Next"} : new String[]{"Not now", "Allow"},
                 granted ? new Runnable[]{new Runnable() { @Override public void run() { next(); } }}
                         : new Runnable[]{
@@ -255,8 +256,8 @@ public final class SetupActivity extends Activity {
         final boolean on = prefs.getBoolean("dash_camera", false) && granted(Manifest.permission.CAMERA);
         LinearLayout s = stepLayout("Forward camera in the dash",
                 "When the car asks for the forward camera (shifting into Drive), Binnacle can show it in the centre "
-                        + "window, smoothed for this screen, instead of the stock full-screen camera."
-                        + (on ? "\n\nAlready on." : ""));
+                        + "window, smoothed for this screen, instead of the stock full-screen camera.");
+        if (on) s.addView(tick("Already on"));
         s.addView(buttons(on ? new String[]{"Next"} : new String[]{"Not now", "Use the dash camera"},
                 on ? new Runnable[]{new Runnable() { @Override public void run() { next(); } }}
                         : new Runnable[]{
@@ -275,8 +276,8 @@ public final class SetupActivity extends Activity {
     private View finished() {
         LinearLayout s = stepLayout("All set",
                 "Everything here can be changed in Apps → Settings, and Advanced → Run setup shows these steps again.\n\n"
-                        + "Some extras (hiding the stock camera screen and stock pop-ups) need a one-time change on the unit "
-                        + "itself: see docs/UNIT-CHANGES.md on github.com/lotech/binnacle.");
+                        + "For a complete takeover, some steps need doing by hand. See UNIT-CHANGES.md in the repo "
+                        + "(github.com/lotech/binnacle) for details.");
         s.addView(buttons(new String[]{"Done"}, new Runnable[]{
                 new Runnable() { @Override public void run() { finishSetup(); } }}));
         return s;
@@ -328,6 +329,13 @@ public final class SetupActivity extends Activity {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** A green tick and a short line: this step is already done, just carry on. */
+    private TextView tick(String what) {
+        TextView t = text("✓  " + what, 19, Style.GOOD);
+        t.setPadding(0, 0, 0, dp(4));
+        return t;
     }
 
     /** Title, optional body, then whatever the step adds. */
