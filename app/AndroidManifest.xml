@@ -22,6 +22,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- GPS compass (direction of travel). Grant once: pm grant <APP_ID> android.permission.ACCESS_FINE_LOCATION -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Only to open Android's uninstall confirmation (Remove drive logger, Remove Binnacle); the user confirms. -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
     <application
         android:name=".DashApp"
