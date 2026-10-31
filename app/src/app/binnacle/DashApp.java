@@ -81,7 +81,7 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         prefs.registerOnSharedPreferenceChangeListener(this);
         applyTextSize();
         // until the car's lights are known, Auto starts in the theme it last used
-        String mode = prefs.getString("theme", "dark");
+        String mode = prefs.getString("theme", "auto");
         Style.applyTheme("light".equals(mode) || ("auto".equals(mode) && prefs.getBoolean("theme_last_light", false)));
         rainbowRoad = prefs.getBoolean("autopilot_rainbow", false);
         startFeed();
@@ -204,7 +204,7 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
      * Call with now = true to apply at once (setting changed, timer fired).
      */
     void updateTheme(boolean now) {
-        String mode = prefs.getString("theme", "dark");
+        String mode = prefs.getString("theme", "auto");
         // Auto follows the brightness the car sets for the screen (code 18), which tracks the Tesla's
         // own display: headlights flipped at dusk and go off when parked at night (in-car, 29 Oct).
         // Hysteresis: dark at or below AUTO_DARK, light at or above AUTO_LIGHT, keep it in between.
