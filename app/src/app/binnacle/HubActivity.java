@@ -42,6 +42,8 @@ import java.util.List;
 public class HubActivity extends Activity {
 
     private static final String[] TABS = {"Apps", "Display", "Camera", "Car", "Advanced"};
+    private static final int[] TAB_ICONS = {R.drawable.ic_tab_apps, R.drawable.ic_tab_display,
+            R.drawable.ic_tab_camera, R.drawable.ic_tab_car, R.drawable.ic_tab_advanced};
 
     private SharedPreferences prefs;
     private FrameLayout content;
@@ -82,7 +84,7 @@ public class HubActivity extends Activity {
         rail.setOrientation(LinearLayout.VERTICAL);
         rail.setPadding(dp(14), dp(12), dp(12), dp(8));
         rail.setBackgroundColor(Style.PANEL);
-        TextView back = tabButton("‹  Dash");
+        TextView back = tabButton("‹  Back to Dash");
         back.setTextColor(Style.MUTED);
         back.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { finish(); }
@@ -91,6 +93,8 @@ public class HubActivity extends Activity {
         for (int i = 0; i < TABS.length; i++) {
             final int index = i;
             TextView t = tabButton(TABS[i]);
+            t.setCompoundDrawablesRelativeWithIntrinsicBounds(TAB_ICONS[i], 0, 0, 0);
+            t.setCompoundDrawablePadding(dp(12));
             t.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) { showTab(index); }
             });
@@ -209,6 +213,8 @@ public class HubActivity extends Activity {
             TextView v = tabViews.get(t);
             v.setSelected(t == i);
             v.setTextColor(t == i ? Style.FG : Style.MUTED);
+            if (android.os.Build.VERSION.SDK_INT >= 23)        // icon in the same colour as its label
+                v.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(t == i ? Style.FG : Style.MUTED));
         }
         content.removeAllViews();
         switch (i) {
