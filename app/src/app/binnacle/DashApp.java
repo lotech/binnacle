@@ -23,13 +23,15 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
     /** Same debounce as the stock launcher: at most one camera open/close per second. */
     private static final long CAMERA_DEBOUNCE_MS = 1000;
     /**
-     * Feed watchdog: while the car is moving, speed and power change all the time, so the CAN app
-     * sends something every fraction of a second. This long with nothing at all means the data
-     * stopped (canapp alive but silent: a stalled serial link, an MCU reset), and the last speed
-     * and gear must not stay on screen as if live. Not checked while stopped, when the car may
-     * legitimately have nothing new to say.
+     * Feed watchdog: while the car is moving the CAN app sends about 7 messages a second. This long
+     * with nothing at all means the data stopped (canapp alive but silent: a stalled serial link, an
+     * MCU reset), and the last speed and gear must not stay on screen as if live. Logger captures
+     * 28-31 Oct (~45,600 speed messages in D/R while moving): gap between any two messages median
+     * 0.14 s, p99.9 0.98 s, longest 2.6 s (speed alone pauses up to ~3 s cruising, ~6 s crawling,
+     * so it re-arms on any code), so 8 s is ~3x the worst real gap. Not checked while stopped,
+     * when the car may legitimately have nothing new to say.
      */
-    static final long STALE_MS = 5000;
+    static final long STALE_MS = 8000;
     static final String STALE_PROBLEM = "No car data, reconnecting";
 
     public final CarState car = new CarState();
