@@ -172,7 +172,7 @@ public final class SetupActivity extends Activity {
             ImageView pic = new ImageView(this);
             pic.setImageBitmap(asset(dirs[m] + "/turn/0.png"));
             pic.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            card.addView(pic, new LinearLayout.LayoutParams(dp(200), dp(84)));
+            card.addView(pic, new LinearLayout.LayoutParams(dp(200), dp(74)));
             TextView name = text(names[m], 17, Style.FG);
             name.setGravity(Gravity.CENTER);
             card.addView(name, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
