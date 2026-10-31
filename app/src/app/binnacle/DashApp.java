@@ -291,6 +291,7 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
                     car.regen ? -car.power : car.power, car.speedKmh());
             if (code == 16) onFrontCam(car.frontCamRequest);
             if (code == 9 && !demo) saveLights(data);
+            if (STALE_PROBLEM.equals(problem)) problem = null;   // live data again after a stall
         } catch (Throwable t) {
             android.util.Log.w("binnacle", "bad data for code " + code, t);
             return;
@@ -406,6 +407,9 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
     }
 
     @Override public void onStatus(String p) {
+        // A silent feed re-registers fine without sending anything, so "no car data" stays up until
+        // live data actually arrives (onData), not just until the new registration succeeds.
+        if (p == null && STALE_PROBLEM.equals(problem)) return;
         problem = p;
         // Feed lost (service died, not found, refused, or silent): nothing on screen is current any
         // more, so clear it rather than keep showing the last speed / gear / indicators as live.
