@@ -38,8 +38,13 @@ On a ship, the binnacle is the stand in front of the helm that holds the compass
 - **Warnings that clear on time:** the attention warning goes away when the car clears it, not seconds later.
 - **Theme that doesn't flip-flop:** Auto waits for the car's light level to settle before switching.
 
+## Planned/Hoped for Features.
+- CarPlay/Android Auto in the centre of the screen.
+- Installed Navigation apps in the centre of the screen with access to Cached data.
+- Improved design with more options for centre screen.
+
 ## The hardware (what the listings don't tell you)
-Sold as an "Android 12" 10.25" cluster for the Model 3 and Model Y under several brands. Inside, it's a ZIQI "A007" board. What we found on ours:
+Sold as an "Android 12" 10.25" cluster for the Model 3 and Model Y under several brands. Inside, it's a ZIQI "A007" board.
 
 | | |
 |---|---|
@@ -58,15 +63,10 @@ Sold as an "Android 12" 10.25" cluster for the Model 3 and Model Y under several
 
 Changes we made to the unit itself (outside the app), each with its undo: `docs/UNIT-CHANGES.md`. No stock apps were removed.
 
-## Planned/Hoped for Features.
-- CarPlay/Android Auto in the centre of the screen.
-- Installed Navigation apps in the centre of the screen with access to Cached data.
-- Improved design with more options for centre screen.
-
 > **ABSOLUTE RULE — RECEIVE ONLY.** Nothing in this project ever sends anything to the car's CAN bus or the MCU. The dash app only *subscribes* to the stock CAN service and *receives* data. This is enforced in code (one class, two allowed binder calls: subscribe/unsubscribe) and by a build-time guard (`app/tools/check_readonly.sh`) that refuses to build if any write path is referenced. Never weaken or bypass it.
 
 ## Status
-In daily use on the owner's car since 29 Oct 2026, as the unit's Home app (it replaces the stock dash; the stock launcher stays installed as the fallback).
+In daily use on my 2023 Model 3 since 27 Oct 2026, as the unit's Home app (it replaces the stock dash; the stock launcher stays installed as the fallback).
 - ✅ Reverse-engineered the stock CAN data interface and built a **field map** (`docs/FIELD_MAP.md`).
 - ✅ An optional read-only **logger** (`capture/`), a developer tool that records the car data feed. It never records location, isn't installed by default, and is only started by the dash if you opt in.
 - ✅ The **dash app** (`app/`): speed, gear, lights, power/regen, battery % (decoded, see below), tyres, parking sensors, doors, Autopilot, light/dark/auto theme, forward camera inside the dash, CarPlay start/end. See `app/README.md`.
@@ -95,9 +95,6 @@ adb install -r capture/build/BinnacleLogger.apk
 # "Export logs to Downloads" copies the logs out when you want them
 ```
 It is **read-only** (subscribe + log only). Undo: `adb uninstall app.binnacle.logger`, or Advanced → Remove drive logger in Binnacle.
-
-## Mockups
-Open `mockups/cluster_mockup.html` in a browser (it loads web fonts; no vendor art). `mockups/cluster_mockup_renders.html` is the same mockup using the bundled car renders from `app/assets/cars/`.
 
 ## Safety & reversibility
 - The app only **reads** the stock CAN feed; it never writes to the MCU or the vehicle CAN bus (see `CLAUDE.md`).
