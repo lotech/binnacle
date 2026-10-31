@@ -276,7 +276,7 @@ public class HubActivity extends Activity {
                     switchCard("Show raw CAN values", "Latest raw fields over the centre view, for in-car checks", "raw_overlay", false),
                     switchCard("Demo data", "Simulated drive instead of the car feed", "demo", false),
                     loggerCards(),
-                    stack(resetCard(), aboutCard()))); break;
+                    stack(setupCard(), resetCard(), aboutCard()))); break;
         }
         final ScrollView sv = pageScroll();
         if (keepScroll > 0 && sv != null) {
@@ -662,6 +662,17 @@ public class HubActivity extends Activity {
      * Remove Binnacle: Android's uninstaller for this app; with Binnacle gone the unit falls
      * back to the stock dash, which was never removed. Both ask first.
      */
+    /** The setup wizard again (first-start steps; none of them is forced). */
+    private View setupCard() {
+        LinearLayout card = card("Setup", null);
+        TextView b = chip("Run setup");
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { SetupActivity.start(HubActivity.this); }
+        });
+        card.addView(b, new LinearLayout.LayoutParams(dp(220), dp(BUTTON_DP)));
+        return card;
+    }
+
     private View resetCard() {
         LinearLayout card = card("Reset or remove", null);
         LinearLayout row = new LinearLayout(this);
@@ -941,6 +952,12 @@ public class HubActivity extends Activity {
     }
 
     /** Runs cmd off the main thread; shows On / Off on b from the reply (a GET) or from `set`. */
+    /**
+     * LocalShell reaches the unit's own ADB daemon, which is off on a fresh unit (it's turned on
+     * once through EngineerMode, see docs/ADB-GUIDE.md): the connection is refused then.
+     */
+    private static final String NO_ADB = "no network adb";
+
     private void runShell(final LocalShell.Command cmd, final TextView b, final Boolean set) {
         b.setEnabled(false);
         new Thread(new Runnable() {
@@ -950,6 +967,8 @@ public class HubActivity extends Activity {
                 try {
                     String out = LocalShell.run(cmd);
                     if (on == null) on = out.startsWith("true");
+                } catch (java.net.ConnectException e) {
+                    err = NO_ADB;
                 } catch (Exception e) {
                     err = e.getMessage();
                 }
@@ -958,6 +977,7 @@ public class HubActivity extends Activity {
                 b.post(new Runnable() {
                     @Override public void run() {
                         b.setEnabled(true);
+                        if (NO_ADB.equals(problem)) { b.setText("Needs network ADB"); return; }
                         if (problem != null) { b.setText(set == null ? "Couldn't read" : "Couldn't change"); return; }
                         b.setSelected(shown);
                         b.setText(shown ? "On" : "Off");
@@ -981,6 +1001,19 @@ public class HubActivity extends Activity {
                         try {
                             LocalShell.run(cmd);
                             result = "Done";
+                        } catch (java.net.ConnectException e) {
+                            // a fresh unit has no network ADB: for End CarPlay, Android's Wi-Fi screen does
+                            // the same job by hand (Wi-Fi off and on)
+                            result = cmd == LocalShell.Command.END_CARPLAY ? "Turn Wi-Fi off and on" : "Needs network ADB";
+                            if (cmd == LocalShell.Command.END_CARPLAY) b.post(new Runnable() {
+                                @Override public void run() {
+                                    try {
+                                        startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
+                                    } catch (RuntimeException ignored) {
+                                        // no Wi-Fi screen: the label says what to do
+                                    }
+                                }
+                            });
                         } catch (Exception e) {
                             result = "Couldn't: " + e.getMessage();
                         }

@@ -58,6 +58,10 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+        <activity android:name=".SetupActivity"
+            android:label="Set up Binnacle"
+            android:exported="false"
+            android:theme="@style/Dash.List" />
         <activity android:name=".HubActivity"
             android:label="Apps and settings"
             android:exported="false"
