@@ -1,0 +1,5 @@
+Car model: "2021 Tesla Model Y" by tonielpro520 (https://sketchfab.com/tonielpro520),
+https://sketchfab.com/3d-models/2021-tesla-model-y-59e2ead369984b1a85c800ff6cf6789d
+Licence CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Modified: recoloured, doors cut
+free and hinged, mirrored for RHD, posed, rendered.
+Rendered with a Blender script (make_pack.py).

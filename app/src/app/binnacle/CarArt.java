@@ -55,8 +55,9 @@ final class CarArt {
 
     /**
      * hand = the set to show (CarPacks.HANDS: rhd / lhd, or y-rhd / y-lhd for a Model Y). A Model Y
-     * without its pack (nothing is bundled for it) falls back to its other side, then to the
-     * Model 3, so there is always a car while the pack downloads.
+     * without its pack (only dark grey right-hand drive is bundled) falls back to any bundled Model Y
+     * colour on that side, its other side, then the Model 3, so there is always a car while the pack
+     * downloads.
      */
     static CarArt load(Context c, int carColour, String hand) {
         boolean modelY = hand.startsWith("y-");

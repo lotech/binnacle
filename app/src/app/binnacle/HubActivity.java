@@ -243,7 +243,7 @@ public class HubActivity extends Activity {
                             + "Model 3: 3D car model by Ameer Studio (Sketchfab), CC BY 4.0, modified "
                             + "(recoloured, mirrored for right-hand drive, posed, rendered).\n"
                             + "Model Y: based on \"2021 Tesla Model Y\" by tonielpro520 (Sketchfab), CC BY 4.0, modified "
-                            + "(recoloured, posed, rendered)."))); break;
+                            + "(recoloured, doors separated and hinged, mirrored for right-hand drive, posed, rendered)."))); break;
         }
         if (keepScroll > 0 && content.getChildCount() > 0) {
             final View sv = content.getChildAt(0);
