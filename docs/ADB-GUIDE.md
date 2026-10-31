@@ -1,6 +1,6 @@
 # Enabling network ADB (and root) on the Carview 10.25" Tesla Model 3/Y Android cluster
 
-This guide gets you an ADB shell over Wi-Fi on the Carview 10.25-inch Android 12 4G instrument cluster for the Model 3/Y (sold by smeshmega). It is likely the same hardware as the Hansshow and Tesery 10.25" units, so it may work on those too, as long as your firmware matches the table below. The USB-C port on these units is host-only, so a USB cable won't work. Everything here goes through Wi-Fi.
+This guide gets you an ADB shell over Wi-Fi on the Carview 10.25-inch "Android 12" 4G instrument cluster (really Android 10, see the README) for the Model 3/Y (sold by smeshmega). It is likely the same hardware as the Hansshow and Tesery 10.25" units, so it may work on those too, as long as your firmware matches the table below. The USB-C port on these units is host-only, so a USB cable won't work. Everything here goes through Wi-Fi.
 
 ## Check your unit matches
 
@@ -9,7 +9,7 @@ These steps were tested on a unit reporting the following (check under About, or
 | Property | Value |
 |---|---|
 | SoC | Unisoc (Spreadtrum/sprd) UMS512, not MediaTek |
-| Android | 12 (build SP1A.210812.016), SDK 29, security patch 2021-12-05 |
+| Android | Labelled 12 (build SP1A.210812.016), but SDK 29 = **Android 10**; security patch 2021-12-05 |
 | Build | `A007-userdebug 12 SP1A.210812.016 202302282110 release-keys` |
 | Fingerprint | `Vastking/KingPad_SA10_EEA/KingPad_SA10_EEA:12/.../202302282110:userdebug/release-keys` |
 | Kernel | 4.14.133+ (Feb 2023) |
