@@ -102,6 +102,7 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         String mode = prefs.getString("theme", "auto");
         Style.applyTheme("light".equals(mode) || ("auto".equals(mode) && prefs.getBoolean("theme_last_light", daytime())));
         rainbowRoad = prefs.getBoolean("autopilot_rainbow", false);
+        readDrawPrefs();
         startFeed();
         startCompass();
         watchLogger();
@@ -345,23 +346,61 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
     }
 
     /** Driving side (Car → Driving side): left-hand drive uses the lhd car renders. */
-    public boolean leftHandDrive() { return "lhd".equals(prefs.getString("drive_side", "rhd")); }
+    public boolean leftHandDrive() { return lhd; }
+
+    /**
+     * Settings the views use on every frame, cached here (read in onCreate, refreshed on change) so
+     * the draw loop never goes to SharedPreferences.
+     */
+    private volatile boolean lhd, modelY, rawOverlay;
+    private volatile int colourPref = -1;              // -1 = Auto (what the car reports)
+    private volatile String units = "auto";
+    private volatile boolean tyreBar;
+    private volatile int fullRangeKm = 410;
+
+    private void readDrawPrefs() {
+        lhd = "lhd".equals(prefs.getString("drive_side", "rhd"));
+        modelY = "y".equals(prefs.getString("car_model", "3"));
+        rawOverlay = prefs.getBoolean("raw_overlay", false);
+        units = prefs.getString("units", "auto");
+        tyreBar = "bar".equals(prefs.getString("tyre_unit", "psi"));
+        int r;
+        try {
+            r = Integer.parseInt(prefs.getString("full_range_km", "410").trim());
+        } catch (RuntimeException e) {
+            r = 330;                                   // unreadable: the old fallback
+        }
+        fullRangeKm = r;
+        String c = prefs.getString("car_colour", "auto");
+        int v = -1;
+        try {
+            if (!"auto".equals(c)) v = Integer.parseInt(c);
+        } catch (NumberFormatException ignored) {
+            // unreadable: treat as Auto
+        }
+        colourPref = v;
+    }
+
+    /** Units setting (Car → Units): "auto", "metric" or "imperial". */
+    public String units() { return units; }
+
+    /** Tyre pressure in bar (Car → Tyre pressure), else psi. */
+    public boolean tyreBar() { return tyreBar; }
+
+    /** Car → Range at 100%, in km (as stored). */
+    public int fullRangeKm() { return fullRangeKm; }
+
+    /** Show raw CAN values (Advanced). */
+    public boolean rawOverlay() { return rawOverlay; }
 
     /**
      * The car's colour for the images (CarPacks.COLOURS index): Car → Car colour if picked by hand,
      * else what the car reports (carcolor, as the stock dash's vehicle colour setting gives it).
      */
-    public int carColour() {
-        String c = prefs.getString("car_colour", "auto");
-        try {
-            return "auto".equals(c) ? car.carColour : Integer.parseInt(c);
-        } catch (NumberFormatException e) {
-            return car.carColour;
-        }
-    }
+    public int carColour() { return colourPref >= 0 ? colourPref : car.carColour; }
 
     /** Car model (first start, or Car → Car model): "3" (default) or "y". */
-    public boolean modelY() { return "y".equals(prefs.getString("car_model", "3")); }
+    public boolean modelY() { return modelY; }
 
     /** The render set for the model and driving side (CarPacks.HANDS): rhd, lhd, y-rhd or y-lhd. */
     public String artSet() { return (modelY() ? "y-" : "") + (leftHandDrive() ? "lhd" : "rhd"); }
@@ -379,9 +418,11 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
     private void fetchModelYPack(int colour, final String hand) {
         if (!hand.startsWith("y-") || colour < 0 || colour >= CarPacks.COLOURS.length) return;
         final String c = CarPacks.COLOURS[colour];
-        if (CarPacks.bundled(this, hand, c)) return;
-        // recorded even when already downloaded, so Remove in Car images doesn't trigger a fresh download
-        if (!packTried.add(hand + "/" + c) || CarPacks.downloaded(this, hand, c) || CarPacks.downloading(hand, c)) return;
+        // called from art(), so on every frame: decide once per pack, then it's a set lookup (no
+        // asset-folder scan). Recorded even when bundled or already downloaded, so Remove in Car
+        // images doesn't trigger a fresh download.
+        if (!packTried.add(hand + "/" + c)) return;
+        if (CarPacks.bundled(this, hand, c) || CarPacks.downloaded(this, hand, c) || CarPacks.downloading(hand, c)) return;
         new Thread(new Runnable() {
             @Override public void run() {
                 boolean ok;
@@ -432,6 +473,7 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
     }
 
     @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
+        readDrawPrefs();
         if ("demo".equals(key)) startFeed();
         if ("text_size".equals(key)) applyTextSize();
         if ("autopilot_rainbow".equals(key)) rainbowRoad = prefs.getBoolean(key, false);

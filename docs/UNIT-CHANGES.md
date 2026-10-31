@@ -6,6 +6,10 @@ Binnacle itself installs as a normal app. Getting the most out of the unit took 
 
 Commands assume `adb connect <unit-ip>:5555` first. `su 0` gives root on this unit (`su -c` doesn't work).
 
+> **⚠️ Network ADB is root for anyone on the same network.** This firmware's adb asks for no key or password, and `su 0` works from it. While port 5555 is open, any device on the same Wi-Fi can take full control of the unit: that includes a shared or public network, and the unit's own hotspot if you share it. Keep it on only on networks you trust, or switch it off when you're done (`adb shell su 0 setprop persist.adb.tcp.port ""`, then reboot). Details: [ADB-GUIDE.md](ADB-GUIDE.md#️-security-warning-read-this-before-making-it-persistent).
+
+> **Removing Binnacle doesn't undo these.** Uninstalling Binnacle brings the stock dash back, but the changes below stay until you undo them. In particular, if you disabled the stock camera screen, run its Undo command, or the camera won't open by itself in Drive any more.
+
 | Change | Why | Command | Undo |
 |---|---|---|---|
 | Network ADB survives reboots | So you don't need the EngineerMode steps after every reboot (see `ADB-GUIDE.md`) | `adb shell su 0 setprop persist.adb.tcp.port 5555` | `adb shell su 0 setprop persist.adb.tcp.port ""` |
