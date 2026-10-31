@@ -334,8 +334,9 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
     private void fetchModelYPack(int colour, final String hand) {
         if (!hand.startsWith("y-") || colour < 0 || colour >= CarPacks.COLOURS.length) return;
         final String c = CarPacks.COLOURS[colour];
-        if (CarPacks.bundled(this, hand, c) || CarPacks.downloaded(this, hand, c) || CarPacks.downloading(hand, c)) return;
-        if (!packTried.add(hand + "/" + c)) return;
+        if (CarPacks.bundled(this, hand, c)) return;
+        // recorded even when already downloaded, so Remove in Car images doesn't trigger a fresh download
+        if (!packTried.add(hand + "/" + c) || CarPacks.downloaded(this, hand, c) || CarPacks.downloading(hand, c)) return;
         new Thread(new Runnable() {
             @Override public void run() {
                 boolean ok;
