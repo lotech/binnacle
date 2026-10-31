@@ -1041,9 +1041,11 @@ public class HubActivity extends Activity {
                 + "Model 3: \"Tesla 2018 Model 3\" by Ameer Studio\n"
                 + "Model Y: \"2021 Tesla Model Y\" by tonielpro520";
         String unit = androidVersion() + "\n"
-                + "Firmware " + android.os.Build.DISPLAY + "\n"
-                + "Board " + android.os.Build.BOARD + " · " + android.os.Build.HARDWARE + "\n"
-                + "Screen " + dm.widthPixels + " × " + dm.heightPixels + " at " + dm.densityDpi + " dpi\n"
+                + "Firmware " + android.os.Build.DISPLAY.replace(" release-keys", "") + "\n"
+                + "Board " + android.os.Build.BOARD + " · screen " + dm.widthPixels + " × " + dm.heightPixels + ", " + dm.densityDpi + " dpi\n"
+                + "Memory " + memory() + "\n"
+                + "Storage " + storage() + "\n"
+                + "GPS " + app.compass().summary() + "\n"
                 + "Car data: " + feed + "\n"
                 + "Drive logger: " + logger;
 
@@ -1108,6 +1110,28 @@ public class HubActivity extends Activity {
         }
         d.show();
         close.requestFocus();
+    }
+
+    /** RAM in use of the total, from Android's memory info. */
+    private String memory() {
+        android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        if (am == null) return "unknown";
+        android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+        am.getMemoryInfo(mi);
+        return android.text.format.Formatter.formatShortFileSize(this, mi.totalMem - mi.availMem) + " used of "
+                + android.text.format.Formatter.formatShortFileSize(this, mi.totalMem);
+    }
+
+    /** Internal storage (the data partition) in use of its size. */
+    private String storage() {
+        try {
+            android.os.StatFs fs = new android.os.StatFs(android.os.Environment.getDataDirectory().getPath());
+            long total = fs.getTotalBytes(), free = fs.getAvailableBytes();
+            return android.text.format.Formatter.formatShortFileSize(this, total - free) + " used of "
+                    + android.text.format.Formatter.formatShortFileSize(this, total);
+        } catch (RuntimeException e) {
+            return "unknown";
+        }
     }
 
     private View aboutColumn(String heading, String body) {

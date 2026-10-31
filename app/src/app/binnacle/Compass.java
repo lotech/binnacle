@@ -32,6 +32,12 @@ final class Compass implements LocationListener {
     private float heading = Float.NaN;
     private long headingMs;
     private boolean running;
+    /** Last fix (any speed) for the About screen: when, and its accuracy in metres. */
+    private long fixMs;
+    private float fixAccuracy = Float.NaN;
+    /** Satellites from the GNSS status (API 24+): in view, used in the fix, mean signal of those used (dB-Hz). */
+    private int satsInView, satsUsed;
+    private float usedCn0 = Float.NaN;
 
     Compass(Context context, Sink sink) {
         this.context = context;
@@ -46,6 +52,20 @@ final class Compass implements LocationListener {
         if (lm == null || !lm.getAllProviders().contains(LocationManager.GPS_PROVIDER)) return false;
         try {
             lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, this, Looper.getMainLooper());
+            if (android.os.Build.VERSION.SDK_INT >= 24) {
+                lm.registerGnssStatusCallback(new android.location.GnssStatus.Callback() {
+                    @Override public void onSatelliteStatusChanged(android.location.GnssStatus st) {
+                        int n = st.getSatelliteCount(), used = 0;
+                        float sum = 0;
+                        for (int i = 0; i < n; i++) {
+                            if (st.usedInFix(i)) { used++; sum += st.getCn0DbHz(i); }
+                        }
+                        satsInView = n;
+                        satsUsed = used;
+                        usedCn0 = used > 0 ? sum / used : Float.NaN;
+                    }
+                }, new android.os.Handler(Looper.getMainLooper()));
+            }
             running = true;
         } catch (RuntimeException e) {
             running = false;
@@ -65,7 +85,26 @@ final class Compass implements LocationListener {
         return POINTS[i];
     }
 
+    /** One line for About: fix age and accuracy, satellites used / in view, their mean signal. */
+    String summary() {
+        if (!running) return "off (no location permission)";
+        StringBuilder b = new StringBuilder();
+        long age = fixMs == 0 ? -1 : (SystemClock.elapsedRealtime() - fixMs) / 1000;
+        if (age < 0) b.append("no fix yet");
+        else if (age > 10) b.append("last fix ").append(age).append(" s ago");
+        else b.append("fix").append(Float.isNaN(fixAccuracy) ? "" : ", ±" + Math.round(fixAccuracy) + " m");
+        if (satsInView > 0) {
+            b.append(" · ").append(satsUsed).append(" of ").append(satsInView).append(" satellites");
+            if (!Float.isNaN(usedCn0)) b.append(", ").append(Math.round(usedCn0)).append(" dB-Hz");
+        }
+        return b.toString();
+    }
+
     @Override public void onLocationChanged(Location l) {
+        if (l != null) {
+            fixMs = SystemClock.elapsedRealtime();
+            fixAccuracy = l.hasAccuracy() ? l.getAccuracy() : Float.NaN;
+        }
         if (l == null || !l.hasBearing() || !l.hasSpeed() || l.getSpeed() < MIN_SPEED_MS) return;
         heading = l.getBearing();
         headingMs = SystemClock.elapsedRealtime();
