@@ -388,6 +388,7 @@ public class CentreView extends View {
             parkRect(carRect);
             drawGround(c, carRect, 1f);
             if (doorScene.draw(c, a, car.doors, carRect)) postInvalidateOnAnimation();
+            lights.setModelY(app.modelY());
             lights.drawParked(c, doorScene.view(), carRect, car);
         } else if (b != null) {
             fitBottom(c, b, bw * 0.66f, bh * 0.44f, box.bottom - bh * 0.14f);
@@ -486,6 +487,7 @@ public class CentreView extends View {
         if (b != null) {
             if (k >= 1) drawSensorArcs(c, driveRect);         // once the car has settled; under the car
             c.drawBitmap(b, null, carRect, bmp);
+            lights.setModelY(app.modelY());
             lights.drawRearView(c, carRect, car);
         } else {
             float cx = box.centerX(), base = box.bottom - bh * 0.07f, W = bw * 0.26f, H = bh * 0.3f;

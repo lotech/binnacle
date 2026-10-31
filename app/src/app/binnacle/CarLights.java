@@ -13,22 +13,51 @@ import android.graphics.Shader;
 /**
  * Live lights drawn over the car render: indicators (amber, following the car's own on/off flag,
  * which already flashes), tail/position lights (red), headlights and high beam (white). Own drawn
- * glows, no vendor art; lamp positions measured from the stock 800x434 renders (rear lamps found
- * from their red pixels, rear view = turn frame 12 = car_bg/middlecar). Front fog lights glow low
+ * glows, no vendor art; lamp positions measured per car model from Binnacle's 800x434 renders
+ * (see Lamps). Front fog lights glow low
  * in the front bumper on the side views; the rear fog light glows red in the lower rear bumper on
  * the rear views. No brake lights: the feed has no brake field.
  */
 final class CarLights {
 
-    // lamp centres in the 800x434 frame
-    private static final float[] BEHIND_LEFT = {300, 250}, BEHIND_RIGHT = {510, 250};
-    private static final float[] LEFTSIDE_REAR = {716, 152}, LEFTSIDE_FRONT = {112, 172};
-    private static final float[] RIGHTSIDE_REAR = {92, 152}, RIGHTSIDE_FRONT = {688, 172};
-    private static final float[] LEFTSIDE_FOG = {92, 212}, RIGHTSIDE_FOG = {708, 212};
+    /**
+     * Lamp centres in the 800x434 frame, per car model, measured from Binnacle's own renders
+     * (red tail-lamp pixels, the headlight's bright patch): turn frame 0 = left side, 24 = right
+     * side, 12 = from behind. The Model 3 sits lower in its frame than the old stock renders these
+     * were first measured on (in-car, 1 Nov: glows were up on the boot and bonnet).
+     */
+    private static final class Lamps {
+        final float[] behindLeft, behindRight, leftRear, leftFront, rightRear, rightFront, leftFog, rightFog,
+                behindFogLeft, behindFogRight;
+        Lamps(float[] behindLeft, float[] behindRight, float[] leftRear, float[] leftFront, float[] rightRear,
+              float[] rightFront, float[] leftFog, float[] rightFog, float[] behindFogLeft, float[] behindFogRight) {
+            this.behindLeft = behindLeft; this.behindRight = behindRight; this.leftRear = leftRear;
+            this.leftFront = leftFront; this.rightRear = rightRear; this.rightFront = rightFront;
+            this.leftFog = leftFog; this.rightFog = rightFog;
+            this.behindFogLeft = behindFogLeft; this.behindFogRight = behindFogRight;
+        }
+    }
+
+    private static final Lamps MODEL_3 = new Lamps(
+            new float[]{289, 280}, new float[]{517, 280},     // tail lamps from behind
+            new float[]{711, 168}, new float[]{100, 188},     // left side: rear, front
+            new float[]{95, 159}, new float[]{700, 180},      // right side: rear, front
+            new float[]{88, 222}, new float[]{712, 218},      // front fogs on the side views
+            new float[]{310, 352}, new float[]{496, 352});    // rear fogs from behind
+    private static final Lamps MODEL_Y = new Lamps(
+            new float[]{300, 250}, new float[]{510, 250},
+            new float[]{716, 152}, new float[]{112, 172},
+            new float[]{92, 152}, new float[]{688, 172},
+            new float[]{92, 212}, new float[]{708, 212},
+            new float[]{333, 350}, new float[]{473, 350});
+
+    private Lamps lamps = MODEL_3;
+
+    /** Which render's lamp positions to use (Car → Car model). */
+    void setModelY(boolean y) { lamps = y ? MODEL_Y : MODEL_3; }
     /** Where the hidden nose meets the road in the rear view, for the headlight pool. */
     private static final float[] NOSE = {400, 120};
     private static final int BEAM_LAYERS = 16;
-    private static final float[] BEHIND_FOG_LEFT = {310, 325}, BEHIND_FOG_RIGHT = {500, 325};
     /** Turn frames this close to a canonical view still get that view's lights (keeps hazards visible mid-turn). */
     private static final int VIEW_SLACK = 2;
 
@@ -60,7 +89,7 @@ final class CarLights {
             drawRear(c, frame, k, car);
         } else if (view <= DoorScene.VIEW_LEFT + VIEW_SLACK || view >= DoorScene.VIEW_RIGHT - VIEW_SLACK) {
             boolean leftSide = view <= DoorScene.VIEW_LEFT + VIEW_SLACK;
-            float[] rear = leftSide ? LEFTSIDE_REAR : RIGHTSIDE_REAR, front = leftSide ? LEFTSIDE_FRONT : RIGHTSIDE_FRONT;
+            float[] rear = leftSide ? lamps.leftRear : lamps.rightRear, front = leftSide ? lamps.leftFront : lamps.rightFront;
             boolean indicator = leftSide ? car.turnLeft : car.turnRight;
             if (car.position || car.lowBeam) spot(c, frame, k, rear, 34, red, 0.55f);
             if (indicator) {
@@ -70,7 +99,7 @@ final class CarLights {
             if (car.highBeam || car.lowBeam) sideBeam(c, frame, k, front, leftSide, car.highBeam);
             if (car.highBeam) spot(c, frame, k, front, 70, white, 0.9f);
             else if (car.lowBeam) spot(c, frame, k, front, 44, white, 0.7f);
-            if (car.frontFog) spot(c, frame, k, leftSide ? LEFTSIDE_FOG : RIGHTSIDE_FOG, 40, white, 0.75f);
+            if (car.frontFog) spot(c, frame, k, leftSide ? lamps.leftFog : lamps.rightFog, 40, white, 0.75f);
         }
     }
 
@@ -152,15 +181,15 @@ final class CarLights {
 
     private void drawRear(Canvas c, RectF frame, float k, CarState car) {
         if (car.position || car.lowBeam) {
-            spot(c, frame, k, BEHIND_LEFT, 44, red, 0.5f);
-            spot(c, frame, k, BEHIND_RIGHT, 44, red, 0.5f);
+            spot(c, frame, k, lamps.behindLeft, 44, red, 0.5f);
+            spot(c, frame, k, lamps.behindRight, 44, red, 0.5f);
         }
         if (car.rearFog) {
-            spot(c, frame, k, BEHIND_FOG_LEFT, 40, red, 0.9f);
-            spot(c, frame, k, BEHIND_FOG_RIGHT, 40, red, 0.9f);
+            spot(c, frame, k, lamps.behindFogLeft, 40, red, 0.9f);
+            spot(c, frame, k, lamps.behindFogRight, 40, red, 0.9f);
         }
-        if (car.turnLeft) spot(c, frame, k, BEHIND_LEFT, 58, amber, 1f);
-        if (car.turnRight) spot(c, frame, k, BEHIND_RIGHT, 58, amber, 1f);
+        if (car.turnLeft) spot(c, frame, k, lamps.behindLeft, 58, amber, 1f);
+        if (car.turnRight) spot(c, frame, k, lamps.behindRight, 58, amber, 1f);
     }
 
     /** A soft elliptical glow of radius r (frame px) at lamp position p. No per-frame shader changes. */
