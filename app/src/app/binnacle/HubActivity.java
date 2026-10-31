@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.provider.Settings;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.StateListDrawable;
@@ -210,6 +211,7 @@ public class HubActivity extends Activity {
         switch (i) {
             case 0: content.addView(appsGrid()); break;
             case 1: content.addView(cards(          // most used first; the rest below the fold
+                    homeCard(),
                     choiceCard("Theme", "Auto: follows the car's screen", "theme", "dark",
                             new String[]{"auto", "light", "dark"}, new String[]{"Auto", "Light", "Dark"}),
                     choiceCard("Text size", null, "text_size", "100",
@@ -236,6 +238,7 @@ public class HubActivity extends Activity {
                     switchCard("Show raw CAN values", "Latest raw fields over the centre view, for in-car checks", "raw_overlay", false),
                     switchCard("Demo data", "Simulated drive instead of the car feed", "demo", false),
                     loggerCards(),
+                    resetCard(),
                     infoCard("About", "Binnacle, a read-only dash for this unit.\n"
                             + "Model 3: 3D car model by Ameer Studio (Sketchfab), CC BY 4.0, modified "
                             + "(recoloured, mirrored for right-hand drive, posed, rendered).\n"
@@ -495,6 +498,97 @@ public class HubActivity extends Activity {
         });
         card.addView(b, new LinearLayout.LayoutParams(dp(150), dp(BUTTON_DP)));
         return card;
+    }
+
+    /**
+     * Whether Binnacle is the Home app, and a Set as Default button that opens Android's own Home
+     * app picker (an app can't make itself the default). The Display tab is rebuilt on return
+     * (onResume), so the card shows the new state.
+     */
+    private View homeCard() {
+        final boolean isDefault = isDefaultHome();
+        LinearLayout card = card("Home app", isDefault ? "Binnacle is the default dash"
+                : "Make Binnacle the dash the unit opens (the stock dash stays installed)");
+        TextView b = chip(isDefault ? "Default" : "Set as Default");
+        b.setSelected(isDefault);
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { openHomePicker(); }
+        });
+        card.addView(b, new LinearLayout.LayoutParams(dp(200), dp(BUTTON_DP)));
+        return card;
+    }
+
+    private boolean isDefaultHome() {
+        Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
+        ResolveInfo ri = getPackageManager().resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY);
+        return ri != null && ri.activityInfo != null && getPackageName().equals(ri.activityInfo.packageName);
+    }
+
+    /** Android's Home app setting, else the default-apps screen, else Settings itself. */
+    private void openHomePicker() {
+        String[] actions = {Settings.ACTION_HOME_SETTINGS, Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS, Settings.ACTION_SETTINGS};
+        for (String a : actions) {
+            try {
+                startActivity(new Intent(a).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (RuntimeException ignored) {
+                // not on this ROM: try the next
+            }
+        }
+        Toast.makeText(this, "Couldn't open the Home app setting", Toast.LENGTH_LONG).show();
+    }
+
+    /**
+     * Reset settings: clears Binnacle's own settings (theme, car model, driving side, ...) and
+     * restarts the dash, so the first-start questions come back. Downloaded car pictures stay.
+     * Remove Binnacle: Android's uninstaller for this app; with Binnacle gone the unit falls
+     * back to the stock dash, which was never removed. Both ask first.
+     */
+    private View resetCard() {
+        LinearLayout card = card("Reset or remove", "Start Binnacle's settings again, or take Binnacle off the unit and go back to the stock dash");
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        TextView reset = chip("Reset settings");
+        reset.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                BinnacleDialog.show(HubActivity.this, "Reset settings?",
+                        "Binnacle's settings go back to how they started and the dash restarts.\nDownloaded car pictures are kept.",
+                        new String[]{"Cancel", "Reset"}, true, new BinnacleDialog.Choice() {
+                            @Override public void chosen(int index) { if (index == 1) resetSettings(); }
+                        });
+            }
+        });
+        TextView remove = chip("Remove Binnacle");
+        remove.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                BinnacleDialog.show(HubActivity.this, "Remove Binnacle?",
+                        "The unit goes back to the stock dash, which is still installed.\nBinnacle's settings and downloaded car pictures are deleted with it.",
+                        new String[]{"Cancel", "Remove"}, true, new BinnacleDialog.Choice() {
+                            @Override public void chosen(int index) {
+                                if (index != 1) return;
+                                try {
+                                    startActivity(new Intent(Intent.ACTION_DELETE, android.net.Uri.parse("package:" + getPackageName())));
+                                } catch (RuntimeException e) {
+                                    Toast.makeText(HubActivity.this, "Couldn't open the uninstaller", Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
+            }
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(BUTTON_DP), 1);
+        lp.setMargins(0, 0, dp(12), 0);
+        row.addView(reset, lp);
+        row.addView(remove, new LinearLayout.LayoutParams(0, dp(BUTTON_DP), 1));
+        card.addView(row);
+        return card;
+    }
+
+    /** Clears every setting, then restarts the app at the dash so nothing keeps the old values. */
+    private void resetSettings() {
+        prefs.edit().clear().commit();
+        Intent dash = getPackageManager().getLaunchIntentForPackage(getPackageName());
+        if (dash != null) startActivity(dash.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+        System.exit(0);   // the activity start brings the process back with fresh settings
     }
 
     private View switchCard(String title, String summary, final String key, boolean def) {
