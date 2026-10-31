@@ -81,7 +81,7 @@ public class RightPanelView extends View {
         c.drawRect(0, 0, 1, Style.DESIGN_H, line);
 
         // outside temperature (left aligned: the top-right corner is behind the steering wheel)
-        String t = Float.isNaN(car.outsideTemp) ? "--" : Math.round(car.outsideTemp) + "°C";
+        String t = Units.temperature(app, car.outsideTemp);
         Style.size(mid, Style.T_TEMP);
         c.drawText(t, X0, 96, mid);
         Style.size(lbl, Style.T_LABEL);
@@ -140,7 +140,7 @@ public class RightPanelView extends View {
             line = "Estimated";                           // quiet (the owner): no colour, no time
         } else if (soc >= 0) {
             int full = fullRangeKm();
-            if (full > 0) line = "≈ " + Math.round(full * soc / 100f) + " km est.";
+            if (full > 0) line = "≈ " + Math.round(Units.distance(app, full * soc / 100.0)) + " " + Units.distLabel(app) + " est.";
         }
         if (line != null) {
             Style.size(small, Style.T_SMALL);
@@ -307,10 +307,10 @@ public class RightPanelView extends View {
         float cx = (X0 + X1) / 2f;
         float recent = eff.recentWhPerKm();
         Style.size(effBig, Style.T_BATTERY);
-        c.drawText(Float.isNaN(recent) ? "--" : String.valueOf(Math.round(recent)), cx, CARD_TOP + 58, effBig);
+        c.drawText(Float.isNaN(recent) ? "--" : String.valueOf(Math.round(Units.perDistance(app, recent))), cx, CARD_TOP + 58, effBig);
         Style.size(centred, Style.T_SMALL);
         centred.setColor(Style.MUTED);
-        c.drawText("Wh/km · last 5 km", cx, CARD_TOP + 84, centred);
+        c.drawText(Units.imperial(app) ? "Wh/mi · last 3 mi" : "Wh/km · last 5 km", cx, CARD_TOP + 84, centred);
 
         // graph: zero line in the middle, power up in amber, regen down in green, 15 min wide
         float gTop = CARD_TOP + 100, gBottom = CARD_TOP + 212, zero = gTop + (gBottom - gTop) * 0.62f;
@@ -336,8 +336,10 @@ public class RightPanelView extends View {
 
         double km = eff.tripKm();
         float trip = eff.tripWhPerKm(), share = eff.regenShare();
-        String l1 = km < 0.05 ? "This drive: --" : String.format(Locale.UK, "This drive: %.1f km", km);
-        String l2 = (Float.isNaN(trip) ? "-- Wh/km" : Math.round(trip) + " Wh/km")
+        String per = "Wh/" + Units.distLabel(app);
+        String l1 = km < 0.05 ? "This drive: --"
+                : String.format(Locale.UK, "This drive: %.1f %s", Units.distance(app, km), Units.distLabel(app));
+        String l2 = (Float.isNaN(trip) ? "-- " + per : Math.round(Units.perDistance(app, trip)) + " " + per)
                 + " · regen " + (Float.isNaN(share) ? "--" : Math.round(share * 100) + "%");
         centred.setColor(Style.FG);
         Style.fit(centred, l2, X1 - X0 - 24);

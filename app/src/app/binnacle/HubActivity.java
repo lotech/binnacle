@@ -41,7 +41,11 @@ import java.util.List;
  */
 public class HubActivity extends Activity {
 
+    /** Tag on every settings card (scroller() scrolls a focused card fully into view). */
+    private static final Object CARD_TAG = new Object();
     private static final String[] TABS = {"Apps", "Display", "Camera", "Car", "Advanced"};
+    private static final int[] TAB_ICONS = {R.drawable.ic_tab_apps, R.drawable.ic_tab_display,
+            R.drawable.ic_tab_camera, R.drawable.ic_tab_car, R.drawable.ic_tab_advanced};
 
     private SharedPreferences prefs;
     private FrameLayout content;
@@ -82,7 +86,7 @@ public class HubActivity extends Activity {
         rail.setOrientation(LinearLayout.VERTICAL);
         rail.setPadding(dp(14), dp(12), dp(12), dp(8));
         rail.setBackgroundColor(Style.PANEL);
-        TextView back = tabButton("‹  Dash");
+        TextView back = tabButton("‹  Back to Dash");
         back.setTextColor(Style.MUTED);
         back.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { finish(); }
@@ -91,6 +95,8 @@ public class HubActivity extends Activity {
         for (int i = 0; i < TABS.length; i++) {
             final int index = i;
             TextView t = tabButton(TABS[i]);
+            t.setCompoundDrawablesRelativeWithIntrinsicBounds(TAB_ICONS[i], 0, 0, 0);
+            t.setCompoundDrawablePadding(dp(12));
             t.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) { showTab(index); }
             });
@@ -135,7 +141,8 @@ public class HubActivity extends Activity {
 
     /**
      * Steering wheel: scroll down/up walks focus through tabs and tiles in reading order (handled
-     * here, before a ScrollView would turn it into a one-column jump), OK clicks. The first press
+     * here, before a ScrollView would turn it into a one-column jump), wrapping round at either end,
+     * OK clicks. The first press
      * after touching lands on the current tab instead of being lost.
      */
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
@@ -150,8 +157,18 @@ public class HubActivity extends Activity {
             ArrayList<View> order = new ArrayList<>(rail.getFocusables(View.FOCUS_FORWARD));
             order.addAll(content.getFocusables(View.FOCUS_FORWARD));
             int i = order.indexOf(f);
+            int n = order.size();
+            if (n == 0) return true;
             int j = i < 0 ? 0 : i + (code == KeyEvent.KEYCODE_DPAD_DOWN ? 1 : -1);
-            if (j >= 0 && j < order.size()) order.get(j).requestFocus();
+            // wrap round: past the last button back to the top of the menu, and up from the top to the end
+            if (j >= n) {
+                j = 0;
+                ScrollView page = pageScroll();
+                if (page != null) page.smoothScrollTo(0, 0);
+            } else if (j < 0) {
+                j = n - 1;
+            }
+            order.get(j).requestFocus();
             return true;
         }
         return super.dispatchKeyEvent(event);
@@ -161,25 +178,36 @@ public class HubActivity extends Activity {
     private final DashApp.Listener themeListener = new DashApp.Listener() {
         @Override public void onCarChanged(int code) {
             if (code == DashApp.THEME_CHANGED && lightBuilt != Style.light) recreate();
-            if (code == DashApp.PACKS_CHANGED && tab == CAR_TAB) showTab(CAR_TAB);   // whichever Car pictures card is showing now
+            if (code == DashApp.PACKS_CHANGED && tab == CAR_TAB) showTab(CAR_TAB);   // whichever Car images card is showing now
             // the car reports its colour (code 9) after the card was built: rebuild it for that colour
-            if (tab == CAR_TAB && packCardColour != DashApp.get(HubActivity.this).car.carColour) showTab(CAR_TAB);
+            if (tab == CAR_TAB && packCardColour != DashApp.get(HubActivity.this).carColour()) showTab(CAR_TAB);
+            // a door, boot or frunk opened: back to the dash. The stock CAN app only holds back its
+            // full-screen door picture while the dash's own activity is in front, and the dash shows
+            // the open door on its car instead.
+            if (code == 15) {
+                int doors = DashApp.get(HubActivity.this).car.doors;
+                if (doorsSeen >= 0 && doors > 0 && (doors & ~doorsSeen) != 0) finish();
+                doorsSeen = doors;
+            }
         }
     };
+    /** Door bits when settings opened or last changed (-1: not known yet). */
+    private int doorsSeen = -1;
 
     private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
 
-    /** Car model or driving side changed: rebuild the Car tab so Car pictures shows (and fetches) that set. */
+    /** Car model or driving side changed: rebuild the Car tab so Car images shows (and fetches) that set. */
     private final SharedPreferences.OnSharedPreferenceChangeListener sideListener =
             new SharedPreferences.OnSharedPreferenceChangeListener() {
                 @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
-                    if (("drive_side".equals(key) || "car_model".equals(key)) && tab == CAR_TAB) showTab(CAR_TAB);
+                    if (("drive_side".equals(key) || "car_model".equals(key) || "car_colour".equals(key)) && tab == CAR_TAB) showTab(CAR_TAB);
                 }
             };
 
     @Override protected void onStart() {
         super.onStart();
         DashApp.get(this).addListener(themeListener);
+        doorsSeen = DashApp.get(this).car.doors;
         prefs.registerOnSharedPreferenceChangeListener(sideListener);
     }
 
@@ -197,7 +225,7 @@ public class HubActivity extends Activity {
         else if (tab >= 4) showTab(tab);                                   // back from the uninstaller: logger state
     }
 
-    /** The Car tab: car model, driving side, car pictures, tyres, range. */
+    /** The Car tab: car model, driving side, car images, tyres, range. */
     private static final int CAR_TAB = 3;
 
     private void showTab(int i) {
@@ -208,46 +236,47 @@ public class HubActivity extends Activity {
         for (int t = 0; t < tabViews.size(); t++) {
             TextView v = tabViews.get(t);
             v.setSelected(t == i);
-            v.setTextColor(t == i ? Style.FG : Style.MUTED);
+            int colour = t == i ? 0xffffffff : Style.MUTED;     // white on the blue selected fill
+            v.setTextColor(colour);
+            if (android.os.Build.VERSION.SDK_INT >= 23)        // icon in the same colour as its label
+                v.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(colour));
         }
         content.removeAllViews();
         switch (i) {
             case 0: content.addView(appsGrid()); break;
             case 1: content.addView(cards(          // most used first; the rest below the fold
                     homeCard(),
-                    choiceCard("Theme", "Auto: follows the car's screen", "theme", "dark",
+                    choiceCard("Theme", null, "theme", "dark",
                             new String[]{"auto", "light", "dark"}, new String[]{"Auto", "Light", "Dark"}),
                     choiceCard("Text size", null, "text_size", "100",
                             new String[]{"100", "115", "130"}, new String[]{"100%", "115%", "130%"}),
                     choiceCard("Menu side", null, "menu_side", "right",
                             new String[]{"left", "right"}, new String[]{"Left", "Right"}),
                     btAutoConnectCard(),
-                    actionCard("End CarPlay", "Close CarPlay and rejoin home Wi-Fi",
+                    actionCard("End CarPlay", null,
                             "End CarPlay", LocalShell.Command.END_CARPLAY),
                     infoCard("CarPlay layout", carplayLayoutText()))); break;
             case 2: content.addView(cards(
                     switchCard("Camera in the dash", "Forward camera in the centre window", "dash_camera", false),
                     switchCard("Open stock camera on Drive", "Stock camera screen instead", "auto_camera", false))); break;
             case CAR_TAB: content.addView(cards(
-                    choiceCard("Car model", "Which car pictures to show", "car_model", "3",
+                    choiceCard("Car model", null, "car_model", "3",
                             new String[]{"3", "y"}, new String[]{"Model 3", "Model Y"}),
-                    choiceCard("Driving side", "Which side the steering wheel is on (car pictures)", "drive_side", "rhd",
+                    choiceCard("Driving side", null, "drive_side", "rhd",
                             new String[]{"lhd", "rhd"}, new String[]{"Left", "Right"}),
+                    carColourCard(),
                     carPicturesCard(),
+                    choiceCard("Units", null, "units", "auto",
+                            new String[]{"auto", "metric", "imperial"}, new String[]{"Auto", "Metric", "Imperial"}),
                     choiceCard("Tyre pressure", null, "tyre_unit", "psi",
                             new String[]{"psi", "bar"}, new String[]{"psi", "bar"}),
                     stepperCard("Range at 100%", "For the km estimate under the battery %", "full_range_km", 410, 150, 700, 5, "km"),
-                    switchCard("Rainbow road on Autopilot", "Instead of the blue lane", "autopilot_rainbow", false))); break;
+                    pairCard("Autopilot indication", "autopilot_rainbow", "Normal", "Rainbow road"))); break;
             default: content.addView(cards(
                     switchCard("Show raw CAN values", "Latest raw fields over the centre view, for in-car checks", "raw_overlay", false),
                     switchCard("Demo data", "Simulated drive instead of the car feed", "demo", false),
                     loggerCards(),
-                    resetCard(),
-                    infoCard("About", "Binnacle, a read-only dash for this unit.\n"
-                            + "Model 3: 3D car model by Ameer Studio (Sketchfab), CC BY 4.0, modified "
-                            + "(recoloured, mirrored for right-hand drive, posed, rendered).\n"
-                            + "Model Y: based on \"2021 Tesla Model Y\" by tonielpro520 (Sketchfab), CC BY 4.0, modified "
-                            + "(recoloured, doors separated and hinged, mirrored for right-hand drive, posed, rendered)."))); break;
+                    stack(resetCard(), aboutCard()))); break;
         }
         final ScrollView sv = pageScroll();
         if (keepScroll > 0 && sv != null) {
@@ -428,11 +457,52 @@ public class HubActivity extends Activity {
         more.setBackground(pill);
         frame.addView(more, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
+        // only before the first scroll: once you've scrolled you know there's more
+        final boolean[] scrolled = {false};
         final Runnable update = new Runnable() {
-            @Override public void run() { more.setVisibility(sv.canScrollVertically(1) ? View.VISIBLE : View.GONE); }
+            @Override public void run() {
+                if (sv.getScrollY() > dp(8)) scrolled[0] = true;
+                // only when a real amount is hidden, not just the bottom edge of a card
+                View page = sv.getChildCount() > 0 ? sv.getChildAt(0) : null;
+                int hidden = page == null ? 0 : page.getBottom() - sv.getScrollY() - (sv.getHeight() - sv.getPaddingBottom());
+                more.setVisibility(!scrolled[0] && hidden > dp(48) ? View.VISIBLE : View.GONE);
+            }
         };
-        sv.getViewTreeObserver().addOnScrollChangedListener(new android.view.ViewTreeObserver.OnScrollChangedListener() {
-            @Override public void onScrollChanged() { update.run(); }
+        if (android.os.Build.VERSION.SDK_INT >= 23) {
+            sv.setOnScrollChangeListener(new View.OnScrollChangeListener() {
+                @Override public void onScrollChange(View v, int x, int y, int ox, int oy) { update.run(); }
+            });
+        } else {
+            sv.getViewTreeObserver().addOnScrollChangedListener(new android.view.ViewTreeObserver.OnScrollChangedListener() {
+                @Override public void onScrollChanged() { update.run(); }
+            });
+        }
+        // the wheel moves focus button by button, and ScrollView only scrolls far enough to show the
+        // button; show the whole card instead, so its title (which says what the button is) is in view
+        final android.view.ViewTreeObserver.OnGlobalFocusChangeListener showCard = new android.view.ViewTreeObserver.OnGlobalFocusChangeListener() {
+            @Override public void onGlobalFocusChanged(View oldFocus, View newFocus) {
+                // only focus inside this page (an old page's listener may still be registered)
+                View card = null, v = newFocus;
+                while (v != null && v != sv) {
+                    if (v.getTag() == CARD_TAG) card = v;
+                    v = v.getParent() instanceof View ? (View) v.getParent() : null;
+                }
+                if (v != sv || card == null || !sv.isAttachedToWindow()) return;
+                final View c = card;
+                sv.post(new Runnable() {
+                    @Override public void run() {
+                        android.graphics.Rect r = new android.graphics.Rect(0, 0, c.getWidth(), c.getHeight());
+                        sv.offsetDescendantRectToMyCoords(c, r);
+                        int top = r.top - dp(8), bottom = r.bottom + dp(8) - sv.getHeight();
+                        if (top < sv.getScrollY()) sv.smoothScrollTo(0, Math.max(0, top));
+                        else if (bottom > sv.getScrollY()) sv.smoothScrollTo(0, bottom);
+                    }
+                });
+            }
+        };
+        sv.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override public void onViewAttachedToWindow(View v) { v.getViewTreeObserver().addOnGlobalFocusChangeListener(showCard); }
+            @Override public void onViewDetachedFromWindow(View v) { v.getViewTreeObserver().removeOnGlobalFocusChangeListener(showCard); }
         });
         sv.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             @Override public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) { sv.post(update); }
@@ -442,6 +512,7 @@ public class HubActivity extends Activity {
 
     private LinearLayout card(String title, String summary) {
         LinearLayout card = new LinearLayout(this);
+        card.setTag(CARD_TAG);                             // scroller(): bring the whole card into view on focus
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(14), dp(8), dp(14), dp(10));   // compact: most settings above the fold (the owner)
         GradientDrawable bg = new GradientDrawable();
@@ -506,22 +577,21 @@ public class HubActivity extends Activity {
      * location-recording logger, if present, is offered for removal.
      */
     private View loggerCards() {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
+        List<View> box = new ArrayList<>();
         if (installed(OLD_LOGGER_PKG)) {
-            box.addView(uninstallCard("Old drive logger found",
+            box.add(uninstallCard("Old drive logger found",
                     "An older logger that also recorded location. Uninstall it to delete its logs.", OLD_LOGGER_PKG));
         }
         if (installed(LOGGER_PKG)) {
-            box.addView(switchCard("Drive logger: start with the dash",
+            box.add(switchCard("Drive logger: start with the dash",
                     "Records car data, never location, to its own private storage; kept 7 days", "logger_autostart", false));
-            box.addView(uninstallCard("Remove drive logger", "Uninstalling also deletes all its logs", LOGGER_PKG));
+            box.add(uninstallCard("Remove drive logger", "Uninstalling also deletes all its logs", LOGGER_PKG));
         } else {
-            box.addView(infoCard("Drive logger (optional)", "A developer tool that records car data, never location. "
+            box.add(infoCard("Drive logger (optional)", "A developer tool that records car data, never location. "
                     + "Not installed, and Binnacle never installs it. To add it: adb install BinnacleLogger.apk "
                     + "from github.com/lotech/binnacle/releases"));
         }
-        return box;
+        return stack(box.toArray(new View[0]));
     }
 
     private boolean installed(String pkg) {
@@ -556,8 +626,7 @@ public class HubActivity extends Activity {
      */
     private View homeCard() {
         final boolean isDefault = isDefaultHome();
-        LinearLayout card = card("Home app", isDefault ? "Binnacle is the default dash"
-                : "Make Binnacle the dash the unit opens (the stock dash stays installed)");
+        LinearLayout card = card("Home app", isDefault ? null : "The stock dash stays installed");
         TextView b = chip(isDefault ? "Default" : "Set as Default");
         b.setSelected(isDefault);
         b.setOnClickListener(new View.OnClickListener() {
@@ -589,19 +658,19 @@ public class HubActivity extends Activity {
 
     /**
      * Reset settings: clears Binnacle's own settings (theme, car model, driving side, ...) and
-     * restarts the dash, so the first-start questions come back. Downloaded car pictures stay.
+     * restarts the dash, so the first-start questions come back. Downloaded car images stay.
      * Remove Binnacle: Android's uninstaller for this app; with Binnacle gone the unit falls
      * back to the stock dash, which was never removed. Both ask first.
      */
     private View resetCard() {
-        LinearLayout card = card("Reset or remove", "Start Binnacle's settings again, or take Binnacle off the unit and go back to the stock dash");
+        LinearLayout card = card("Reset or remove", null);
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         TextView reset = chip("Reset settings");
         reset.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 BinnacleDialog.show(HubActivity.this, "Reset settings?",
-                        "Binnacle's settings go back to how they started and the dash restarts.\nDownloaded car pictures are kept.",
+                        "Binnacle's settings go back to how they started and the dash restarts.\nDownloaded car images are kept.",
                         new String[]{"Cancel", "Reset"}, true, new BinnacleDialog.Choice() {
                             @Override public void chosen(int index) { if (index == 1) resetSettings(); }
                         });
@@ -611,7 +680,7 @@ public class HubActivity extends Activity {
         remove.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 BinnacleDialog.show(HubActivity.this, "Remove Binnacle?",
-                        "The unit goes back to the stock dash, which is still installed.\nBinnacle's settings and downloaded car pictures are deleted with it.",
+                        "The unit goes back to the stock dash, which is still installed.\nBinnacle's settings and downloaded car images are deleted with it.",
                         new String[]{"Cancel", "Remove"}, true, new BinnacleDialog.Choice() {
                             @Override public void chosen(int index) {
                                 if (index != 1) return;
@@ -638,6 +707,32 @@ public class HubActivity extends Activity {
         Intent dash = getPackageManager().getLaunchIntentForPackage(getPackageName());
         if (dash != null) startActivity(dash.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
         System.exit(0);   // the activity start brings the process back with fresh settings
+    }
+
+    /** Two named choices for an on/off setting (off = first label), shown like the other choice cards. */
+    private View pairCard(String title, final String key, String offLabel, String onLabel) {
+        LinearLayout card = card(title, null);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        boolean on = prefs.getBoolean(key, false);
+        final TextView off = chip(offLabel), yes = chip(onLabel);
+        off.setSelected(!on);
+        yes.setSelected(on);
+        View.OnClickListener pick = new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                prefs.edit().putBoolean(key, v == yes).apply();
+                off.setSelected(v == off);
+                yes.setSelected(v == yes);
+            }
+        };
+        off.setOnClickListener(pick);
+        yes.setOnClickListener(pick);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(BUTTON_DP), 1);
+        lp.setMargins(0, 0, dp(12), 0);
+        row.addView(off, lp);
+        row.addView(yes, new LinearLayout.LayoutParams(0, dp(BUTTON_DP), 1));
+        card.addView(row);
+        return card;
     }
 
     private View switchCard(String title, String summary, final String key, boolean def) {
@@ -696,18 +791,76 @@ public class HubActivity extends Activity {
      * LocalShell, since a normal app may not write Settings.System.
      */
     /**
-     * Car pictures for the car's colour (from the car) and the driving side: built in, downloaded,
+     * Car images for the car's colour (from the car) and the driving side: built in, downloaded,
      * or a Download button that fetches the pack from the project's GitHub release (CarPacks).
      */
-    /** The car colour the Car pictures card was built for (-1: not reported yet). */
+    /** The colour as shown: the stock name "silver" is the dark grey paint. */
+    private static String colourName(String colour) { return "silver".equals(colour) ? "dark grey" : colour; }
+
+    /**
+     * Car colour for the images: Auto uses what the car reports (shown in the summary), or pick one
+     * by hand. A colour that isn't built in shows a Download button on the Car images card below.
+     */
+    private View carColourCard() {
+        int reported = DashApp.get(this).car.carColour;
+        String summary = reported >= 0 && reported < CarPacks.COLOURS.length
+                ? "Auto: " + colourName(CarPacks.COLOURS[reported]) + ", from the car" : "Auto: from the car (not reported yet)";
+        LinearLayout card = card("Car colour", summary);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        final String current = prefs.getString("car_colour", "auto");
+        final List<View> buttons = new ArrayList<>();
+        // Auto first and wider (what most people want), then a swatch per paint, in carcolor order
+        String[] values = {"auto", "0", "1", "2", "3", "4"};
+        for (int i = 0; i < values.length; i++) {
+            final String value = values[i];
+            final View b;
+            if (i == 0) {
+                b = chip("Auto");
+            } else {
+                b = new View(this);
+                b.setFocusable(true);
+                b.setClickable(true);
+                b.setContentDescription(colourName(CarPacks.COLOURS[i - 1]));
+                b.setBackground(swatch(PAINT[i - 1]));
+            }
+            b.setSelected(value.equals(current));
+            b.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    prefs.edit().putString("car_colour", value).apply();
+                    for (View o : buttons) o.setSelected(o == v);
+                }
+            });
+            buttons.add(b);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(i == 0 ? 0 : dp(BUTTON_DP), dp(BUTTON_DP), i == 0 ? 1 : 0);
+            lp.setMargins(i == 0 ? 0 : dp(10), 0, 0, 0);
+            row.addView(b, lp);
+        }
+        card.addView(row);
+        return card;
+    }
+
+    /** Paint swatches in carcolor order: white, red, blue, black, dark grey (silver). */
+    private static final int[] PAINT = {0xfff2f2f0, 0xffb3202a, 0xff1f4f9f, 0xff121314, 0xff4b4f55};
+
+    /** A round-cornered paint swatch: a thin outline at rest, a thick accent ring when chosen or focused. */
+    private Drawable swatch(int paint) {
+        StateListDrawable s = new StateListDrawable();
+        s.addState(new int[]{android.R.attr.state_selected}, shape(paint, Style.ACCENT, 12, 4));
+        s.addState(new int[]{android.R.attr.state_focused}, shape(paint, Style.ACCENT, 12, 3));
+        s.addState(new int[]{}, shape(paint, Style.LINE, 12, 1));
+        return s;
+    }
+
+    /** The car colour the Car images card was built for (-1: not reported yet). */
     private int packCardColour = Integer.MIN_VALUE;
 
     private View carPicturesCard() {
         final DashApp app = DashApp.get(this);
-        int c = app.car.carColour;
+        int c = app.carColour();
         packCardColour = c;
         if (c < 0) {                                   // not reported yet: don't guess a colour to fetch
-            LinearLayout card = card("Car pictures", "Waiting for the car to report its colour");
+            LinearLayout card = card("Car images", "Waiting for the car to report its colour");
             TextView wait = chip("…");
             wait.setEnabled(false);
             card.addView(wait, new LinearLayout.LayoutParams(dp(150), dp(BUTTON_DP)));
@@ -715,9 +868,9 @@ public class HubActivity extends Activity {
         }
         final String colour = c >= 0 && c < CarPacks.COLOURS.length ? CarPacks.COLOURS[c] : "silver";
         final String hand = app.artSet();   // the tab rebuilds when the model or side changes
-        String what = (app.modelY() ? "Model Y, " : "Model 3, ") + colour
+        String what = (app.modelY() ? "Model Y, " : "Model 3, ") + colourName(colour)
                 + (hand.endsWith("lhd") ? ", left-hand drive" : ", right-hand drive");
-        final LinearLayout card = card("Car pictures", what);
+        final LinearLayout card = card("Car images", what);
         final TextView b = chip("…");
         final Runnable refresh = new Runnable() {
             @Override public void run() {
@@ -846,8 +999,187 @@ public class HubActivity extends Activity {
         return card;
     }
 
+    /**
+     * Text-only card. Focusable, with an accent outline when focused, so the steering wheel can
+     * reach it (and the page scrolls to it) even though it has no buttons.
+     */
     private View infoCard(String title, String body) {
-        return card(title, body);
+        LinearLayout card = card(title, body);
+        card.setFocusable(true);
+        StateListDrawable bg = new StateListDrawable();
+        bg.addState(new int[]{android.R.attr.state_focused}, shape(Style.PANEL, Style.ACCENT, 14, 3));
+        bg.addState(new int[]{}, card.getBackground());
+        card.setBackground(bg);
+        return card;
+    }
+
+    /** About: who made it and where it lives; the button opens the full About pop-up. */
+    private View aboutCard() {
+        LinearLayout card = card("About", "Binnacle " + versionName() + " · Made by Lotech");
+        TextView b = chip("About Binnacle");
+        b.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showAbout(); }
+        });
+        card.addView(b, new LinearLayout.LayoutParams(dp(220), dp(BUTTON_DP)));
+        return card;
+    }
+
+    private String versionName() {
+        try {
+            return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            return "";
+        }
+    }
+
+    /**
+     * About pop-up: the app, this unit (read from Android only: nothing is asked of the car or the
+     * MCU, and no serial numbers are shown) and the 3D model credits.
+     */
+    private void showAbout() {
+        DashApp app = DashApp.get(this);
+        String installed = "";
+        try {
+            long t = getPackageManager().getPackageInfo(getPackageName(), 0).lastUpdateTime;
+            installed = ", installed " + new java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.UK).format(new java.util.Date(t));
+        } catch (PackageManager.NameNotFoundException ignored) {
+            // no date
+        }
+        android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+        String feed = app.feedProblem() == null ? "receiving" : app.feedProblem();
+        String logger = !app.loggerInstalled() ? "not installed" : app.loggerRecording() ? "installed, recording" : "installed";
+        String app1 = "Made by Lotech\n"
+                + "github.com/lotech/binnacle\n"
+                + "A read-only dash: it only listens to the car and never sends anything to it.\n\n"
+                + "3D models (CC BY 4.0, modified)\n"
+                + "Model 3: \"Tesla 2018 Model 3\" by Ameer Studio\n"
+                + "Model Y: \"2021 Tesla Model Y\" by tonielpro520";
+        String unit = androidVersion() + "\n"
+                + "Firmware " + android.os.Build.DISPLAY.replace(" release-keys", "") + "\n"
+                + "Board " + android.os.Build.BOARD + " · screen " + dm.widthPixels + " × " + dm.heightPixels + ", " + dm.densityDpi + " dpi\n"
+                + "Memory " + memory() + "\n"
+                + "Storage " + storage() + "\n"
+                + "GPS " + app.compass().summary() + "\n"
+                + "Car data: " + feed + "\n"
+                + "Drive logger: " + logger;
+
+        final android.app.Dialog d = new android.app.Dialog(this);
+        d.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(26), dp(18), dp(18), dp(22));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Style.PANEL);
+        bg.setStroke(dp(1), Style.LINE);
+        bg.setCornerRadius(dp(22));
+        box.setBackground(bg);
+
+        // header: icon, name and version, and an X that starts focused so one wheel press closes it
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        android.widget.ImageView icon = new android.widget.ImageView(this);
+        icon.setImageResource(R.drawable.ic_launcher);
+        head.addView(icon, new LinearLayout.LayoutParams(dp(52), dp(52)));
+        LinearLayout names = new LinearLayout(this);
+        names.setOrientation(LinearLayout.VERTICAL);
+        names.setPadding(dp(14), 0, 0, 0);
+        TextView title = text("Binnacle", 22, Style.FG);
+        title.setTypeface(Style.DISPLAY);
+        names.addView(title);
+        names.addView(text("Version " + versionName() + installed, 13, Style.MUTED));
+        head.addView(names, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        TextView close = chip("✕");
+        close.setContentDescription("Close");
+        close.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { d.dismiss(); }
+        });
+        head.addView(close, new LinearLayout.LayoutParams(dp(52), dp(52)));
+        box.addView(head);
+
+        // two columns: the app on the left, this unit on the right
+        LinearLayout cols = new LinearLayout(this);
+        cols.setOrientation(LinearLayout.HORIZONTAL);
+        cols.setPadding(0, dp(14), 0, 0);
+        cols.addView(aboutColumn("Binnacle", app1), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        View gap = new View(this);
+        cols.addView(gap, new LinearLayout.LayoutParams(dp(24), 1));
+        cols.addView(aboutColumn("This unit", unit), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        box.addView(cols);
+
+        // the X is the only thing to press, so the wheel's OK closes straight away (no focus step first)
+        d.setOnKeyListener(new android.content.DialogInterface.OnKeyListener() {
+            @Override public boolean onKey(android.content.DialogInterface di, int code, KeyEvent e) {
+                if (code != KeyEvent.KEYCODE_ENTER && code != KeyEvent.KEYCODE_DPAD_CENTER) return false;
+                if (e.getAction() == KeyEvent.ACTION_UP) d.dismiss();
+                return true;
+            }
+        });
+        d.setContentView(box);
+        android.view.Window w = d.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(0x00000000));
+            w.setLayout(dp(860), ViewGroup.LayoutParams.WRAP_CONTENT);
+            w.setDimAmount(0.55f);
+        }
+        d.show();
+        close.requestFocus();
+    }
+
+    /** RAM in use of the total, from Android's memory info. */
+    private String memory() {
+        android.app.ActivityManager am = (android.app.ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        if (am == null) return "unknown";
+        android.app.ActivityManager.MemoryInfo mi = new android.app.ActivityManager.MemoryInfo();
+        am.getMemoryInfo(mi);
+        return android.text.format.Formatter.formatShortFileSize(this, mi.totalMem - mi.availMem) + " used of "
+                + android.text.format.Formatter.formatShortFileSize(this, mi.totalMem);
+    }
+
+    /** Internal storage (the data partition) in use of its size. */
+    private String storage() {
+        try {
+            android.os.StatFs fs = new android.os.StatFs(android.os.Environment.getDataDirectory().getPath());
+            long total = fs.getTotalBytes(), free = fs.getAvailableBytes();
+            return android.text.format.Formatter.formatShortFileSize(this, total - free) + " used of "
+                    + android.text.format.Formatter.formatShortFileSize(this, total);
+        } catch (RuntimeException e) {
+            return "unknown";
+        }
+    }
+
+    private View aboutColumn(String heading, String body) {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.addView(text(heading, 15, Style.FG));
+        TextView t = text(body, 13, Style.MUTED);
+        t.setPadding(0, dp(4), 0, 0);
+        col.addView(t);
+        return col;
+    }
+
+    /**
+     * The real Android version from the API level: this unit's firmware calls itself 12 (RELEASE)
+     * but is API 29, which is Android 10.
+     */
+    private static String androidVersion() {
+        int api = android.os.Build.VERSION.SDK_INT;
+        String[] names = {"8", "8.1", "9", "10", "11", "12", "12L", "13", "14", "15"};   // API 26..35
+        String real = api >= 26 && api - 26 < names.length ? names[api - 26] : "API " + api;
+        String label = android.os.Build.VERSION.RELEASE;
+        return "Android " + real + " (API " + api + ")" + (label.equals(real) ? "" : ", labelled " + label);
+    }
+
+    /** Cards one under another in a single grid cell, with the same gap as between grid cells. */
+    private View stack(View... cards) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        for (int i = 0; i < cards.length; i++) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(0, i == 0 ? 0 : dp(12), 0, 0);
+            box.addView(cards[i], lp);
+        }
+        return box;
     }
 
     private String carplayLayoutText() {
@@ -865,7 +1197,7 @@ public class HubActivity extends Activity {
         t.setPadding(dp(16), 0, dp(12), 0);
         t.setFocusable(true);
         t.setClickable(true);
-        t.setBackground(states(Style.PANEL, Style.PANEL2, Style.LINE, 10));
+        t.setBackground(states(Style.PANEL, 0xff1f5b80, Style.LINE, 10));   // selected: the same blue as a selected button
         return t;
     }
 

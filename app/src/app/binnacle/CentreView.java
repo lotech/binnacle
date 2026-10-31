@@ -184,7 +184,7 @@ public class CentreView extends View {
         if (car.odometer < 0) return;
         Style.size(odoText, Style.T_SMALL);              // a little bigger than the 16 px scale text (in-car feedback)
         odoText.setColor(Style.FG);
-        String odo = odoFormat.format(car.odometer) + " " + car.distUnit;
+        String odo = odoFormat.format(Units.odometer(app, car.odometer)) + " " + Units.distLabel(app);
         float w = odoText.measureText(odo), x = box.right - 18, y = box.bottom - 12;
         r.set(x - w - 10, y + odoText.ascent() - 4, x + 10, y + odoText.descent() + 4);
         c.drawRoundRect(r, 10, 10, badgeBg);              // backing so it reads over the road, light theme too
