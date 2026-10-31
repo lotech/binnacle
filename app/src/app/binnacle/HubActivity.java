@@ -41,6 +41,8 @@ import java.util.List;
  */
 public class HubActivity extends Activity {
 
+    /** Tag on every settings card (scroller() scrolls a focused card fully into view). */
+    private static final Object CARD_TAG = new Object();
     private static final String[] TABS = {"Apps", "Display", "Camera", "Car", "Advanced"};
     private static final int[] TAB_ICONS = {R.drawable.ic_tab_apps, R.drawable.ic_tab_display,
             R.drawable.ic_tab_camera, R.drawable.ic_tab_car, R.drawable.ic_tab_advanced};
@@ -455,6 +457,33 @@ public class HubActivity extends Activity {
                 @Override public void onScrollChanged() { update.run(); }
             });
         }
+        // the wheel moves focus button by button, and ScrollView only scrolls far enough to show the
+        // button; show the whole card instead, so its title (which says what the button is) is in view
+        final android.view.ViewTreeObserver.OnGlobalFocusChangeListener showCard = new android.view.ViewTreeObserver.OnGlobalFocusChangeListener() {
+            @Override public void onGlobalFocusChanged(View oldFocus, View newFocus) {
+                // only focus inside this page (an old page's listener may still be registered)
+                View card = null, v = newFocus;
+                while (v != null && v != sv) {
+                    if (v.getTag() == CARD_TAG) card = v;
+                    v = v.getParent() instanceof View ? (View) v.getParent() : null;
+                }
+                if (v != sv || card == null || !sv.isAttachedToWindow()) return;
+                final View c = card;
+                sv.post(new Runnable() {
+                    @Override public void run() {
+                        android.graphics.Rect r = new android.graphics.Rect(0, 0, c.getWidth(), c.getHeight());
+                        sv.offsetDescendantRectToMyCoords(c, r);
+                        int top = r.top - dp(8), bottom = r.bottom + dp(8) - sv.getHeight();
+                        if (top < sv.getScrollY()) sv.smoothScrollTo(0, Math.max(0, top));
+                        else if (bottom > sv.getScrollY()) sv.smoothScrollTo(0, bottom);
+                    }
+                });
+            }
+        };
+        sv.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override public void onViewAttachedToWindow(View v) { v.getViewTreeObserver().addOnGlobalFocusChangeListener(showCard); }
+            @Override public void onViewDetachedFromWindow(View v) { v.getViewTreeObserver().removeOnGlobalFocusChangeListener(showCard); }
+        });
         sv.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             @Override public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) { sv.post(update); }
         });
@@ -463,6 +492,7 @@ public class HubActivity extends Activity {
 
     private LinearLayout card(String title, String summary) {
         LinearLayout card = new LinearLayout(this);
+        card.setTag(CARD_TAG);                             // scroller(): bring the whole card into view on focus
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(14), dp(8), dp(14), dp(10));   // compact: most settings above the fold (the owner)
         GradientDrawable bg = new GradientDrawable();
