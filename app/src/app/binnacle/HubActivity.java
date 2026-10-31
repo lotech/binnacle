@@ -222,24 +222,24 @@ public class HubActivity extends Activity {
                     choiceCard("Menu side", null, "menu_side", "right",
                             new String[]{"left", "right"}, new String[]{"Left", "Right"}),
                     btAutoConnectCard(),
-                    actionCard("End CarPlay", "Close CarPlay and rejoin home Wi-Fi",
+                    actionCard("End CarPlay", null,
                             "End CarPlay", LocalShell.Command.END_CARPLAY),
                     infoCard("CarPlay layout", carplayLayoutText()))); break;
             case 2: content.addView(cards(
                     switchCard("Camera in the dash", "Forward camera in the centre window", "dash_camera", false),
                     switchCard("Open stock camera on Drive", "Stock camera screen instead", "auto_camera", false))); break;
             case CAR_TAB: content.addView(cards(
-                    choiceCard("Car model", "Which car images to show", "car_model", "3",
+                    choiceCard("Car model", null, "car_model", "3",
                             new String[]{"3", "y"}, new String[]{"Model 3", "Model Y"}),
-                    choiceCard("Driving side", "Which side the steering wheel is on (car images)", "drive_side", "rhd",
+                    choiceCard("Driving side", null, "drive_side", "rhd",
                             new String[]{"lhd", "rhd"}, new String[]{"Left", "Right"}),
                     carPicturesCard(),
-                    choiceCard("Units", "Auto: the same as the car", "units", "auto",
+                    choiceCard("Units", null, "units", "auto",
                             new String[]{"auto", "metric", "imperial"}, new String[]{"Auto", "Metric", "Imperial"}),
                     choiceCard("Tyre pressure", null, "tyre_unit", "psi",
                             new String[]{"psi", "bar"}, new String[]{"psi", "bar"}),
                     stepperCard("Range at 100%", "For the km estimate under the battery %", "full_range_km", 410, 150, 700, 5, "km"),
-                    switchCard("Rainbow road on Autopilot", "Instead of the blue lane", "autopilot_rainbow", false))); break;
+                    switchCard("Rainbow road on Autopilot", null, "autopilot_rainbow", false))); break;
             default: content.addView(cards(
                     switchCard("Show raw CAN values", "Latest raw fields over the centre view, for in-car checks", "raw_overlay", false),
                     switchCard("Demo data", "Simulated drive instead of the car feed", "demo", false),
@@ -558,8 +558,7 @@ public class HubActivity extends Activity {
      */
     private View homeCard() {
         final boolean isDefault = isDefaultHome();
-        LinearLayout card = card("Home app", isDefault ? "Binnacle is the default dash"
-                : "Make Binnacle the dash the unit opens (the stock dash stays installed)");
+        LinearLayout card = card("Home app", isDefault ? null : "The stock dash stays installed");
         TextView b = chip(isDefault ? "Default" : "Set as Default");
         b.setSelected(isDefault);
         b.setOnClickListener(new View.OnClickListener() {
@@ -596,7 +595,7 @@ public class HubActivity extends Activity {
      * back to the stock dash, which was never removed. Both ask first.
      */
     private View resetCard() {
-        LinearLayout card = card("Reset or remove", "Start Binnacle's settings again, or take Binnacle off the unit and go back to the stock dash");
+        LinearLayout card = card("Reset or remove", null);
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         TextView reset = chip("Reset settings");
