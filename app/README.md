@@ -1,6 +1,6 @@
 # app/ — Binnacle (read-only replacement cluster)
 
-Package `app.binnacle` by default (`APP_ID=com.xbs.launcher` on the owner's unit, see below); the dash activity is `com.xbs.launcher.MainActivity`. Native Android (Java, Canvas-drawn panels), minSdk 21 / targetSdk 29, ~90 KB, no libraries. In daily use as the Home app on the owner's unit since 29 Oct 2026.
+Installed as package `com.xbs.launcher` (see below; the Java code is in `app.binnacle`); the dash activity is `com.xbs.launcher.MainActivity`. Native Android (Java, Canvas-drawn panels), minSdk 21 / targetSdk 29, ~90 KB, no libraries. In daily use as the Home app on the owner's unit since 29 Oct 2026.
 Layout = the agreed "Dream" mockup: **left** speed, PRND, indicators, speed limit, status lights, power/regen bar ·
 **centre** parked side view that turns and opens the doors, boot and frunk that are open (stock door frames from the unit), or rear view on a moving road in Drive/Reverse, parking-sensor arcs with a STOP sign, the odometer bottom right, and optionally the forward camera ·
 **right** outside temp and a network icon, battery % + estimated range, a swipeable parking-sensor / tyres card, and a dock (CarPlay, Camera, Apps).
@@ -22,11 +22,11 @@ The APK bundles its own car renders in `assets/cars/<hand>/<colour>/`, where han
 To regenerate a colour: `Blender -b --factory-startup -P work/3d/scripts/make_pack.py -- <fbx> <out> paint=<colour> hand=rhd` (scripts live in the project's work folder, not this repo).
 
 ## Hiding the stock door popup (package name)
-The stock CAN app (`com.xbs.canapp`) pops up its own door picture on every door or boot change unless the activity in front is exactly `com.xbs.launcher` / `com.xbs.launcher.MainActivity` (or the stock `com.xbs.launcher1`), hardcoded in its `r1.e`. So the dash's activity is named `com.xbs.launcher.MainActivity`, the Home role sits on that activity itself (an alias showed up under its own class name and let the pop-up through), and the owner's unit is built with the matching package name:
+The stock CAN app (`com.xbs.canapp`) pops up its own door picture on every door or boot change unless the activity in front is exactly `com.xbs.launcher` / `com.xbs.launcher.MainActivity` (or the stock `com.xbs.launcher1`), hardcoded in its `r1.e`. So the dash's activity is named `com.xbs.launcher.MainActivity`, the Home role sits on that activity itself (an alias showed up under its own class name and let the pop-up through), and the app is built with the matching package name (the stock dash is `com.xbs.launcher1`, so they don't clash; it's the default):
 ```
 APP_ID=com.xbs.launcher app/build.sh
 ```
-The default build stays `app.binnacle` (the pop-up then shows as before). Nothing in the CAN app is changed.
+`APP_ID=app.binnacle app/build.sh` builds a copy under another name, for example to sit beside it on an emulator; the pop-up then shows as before. Nothing in the CAN app is changed.
 
 ## Build (no Gradle)
 ```
@@ -52,7 +52,7 @@ adb -s emulator-5554 logcat -s FakeCan
 ## Install on the unit
 ```
 adb connect <unit-ip>:5555
-adb install -r app/build/binnacle.apk            # APP_ID=com.xbs.launcher build
+adb install -r app/build/binnacle.apk
 adb shell pm grant com.xbs.launcher android.permission.ACCESS_FINE_LOCATION   # GPS compass
 adb shell su 0 cmd package set-home-activity com.xbs.launcher/com.xbs.launcher.MainActivity
 adb shell appops set com.xbs.launcher SYSTEM_ALERT_WINDOW allow   # lets the Drive camera open over CarPlay

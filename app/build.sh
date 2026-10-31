@@ -12,9 +12,10 @@ JAR="$SDK/platforms/$(ls "$SDK/platforms" | sort -V | tail -1)/android.jar"
 KEYSTORE="${KEYSTORE:-$HOME/.android/debug.keystore}"
 KS_ALIAS="${KS_ALIAS:-androiddebugkey}"
 KS_PASS="${KS_PASS:-android}"
-# Installed package name. app.binnacle by default; the owner's unit uses APP_ID=com.xbs.launcher so the
-# stock CAN app treats the dash as its own launcher and skips its door popup (see com.xbs.launcher.MainActivity).
-APP_ID="${APP_ID:-app.binnacle}"
+# Installed package name: com.xbs.launcher, so the stock CAN app treats the dash as its own launcher and
+# skips its door popup (see com.xbs.launcher.MainActivity). The Java code stays in app.binnacle.
+# APP_ID=app.binnacle builds a copy that can sit beside it (the pop-up then shows as before).
+APP_ID="${APP_ID:-com.xbs.launcher}"
 OUT=build
 
 # Refuse to build anything that could write to the car.
