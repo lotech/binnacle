@@ -161,19 +161,19 @@ public class HubActivity extends Activity {
     private final DashApp.Listener themeListener = new DashApp.Listener() {
         @Override public void onCarChanged(int code) {
             if (code == DashApp.THEME_CHANGED && lightBuilt != Style.light) recreate();
-            if (code == DashApp.PACKS_CHANGED && tab == 1) showTab(1);   // whichever Car pictures card is showing now
+            if (code == DashApp.PACKS_CHANGED && tab == CAR_TAB) showTab(CAR_TAB);   // whichever Car pictures card is showing now
             // the car reports its colour (code 9) after the card was built: rebuild it for that colour
-            if (tab == 1 && packCardColour != DashApp.get(HubActivity.this).car.carColour) showTab(1);
+            if (tab == CAR_TAB && packCardColour != DashApp.get(HubActivity.this).car.carColour) showTab(CAR_TAB);
         }
     };
 
     private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
 
-    /** Car model or driving side changed: rebuild the Display tab so Car pictures shows (and fetches) that set. */
+    /** Car model or driving side changed: rebuild the Car tab so Car pictures shows (and fetches) that set. */
     private final SharedPreferences.OnSharedPreferenceChangeListener sideListener =
             new SharedPreferences.OnSharedPreferenceChangeListener() {
                 @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
-                    if (("drive_side".equals(key) || "car_model".equals(key)) && tab == 1) showTab(1);
+                    if (("drive_side".equals(key) || "car_model".equals(key)) && tab == CAR_TAB) showTab(CAR_TAB);
                 }
             };
 
@@ -193,9 +193,12 @@ public class HubActivity extends Activity {
         super.onResume();
         if (textScaleBuilt != Style.textScale) { recreate(); return; }   // text size changed: rebuild at the new size
         if (lightBuilt != Style.light) { recreate(); return; }           // theme changed meanwhile (Auto)
-        if (tab == 1) showTab(1);                                          // CarPlay layout may have changed meanwhile
+        if (tab == 1 || tab == CAR_TAB) showTab(tab);                      // CarPlay layout / Home app may have changed meanwhile
         else if (tab >= 4) showTab(tab);                                   // back from the uninstaller: logger state
     }
+
+    /** The Car tab: car model, driving side, car pictures, tyres, range. */
+    private static final int CAR_TAB = 3;
 
     private void showTab(int i) {
         // rebuilding the same tab (a download finished, the side changed): keep the scroll position
@@ -216,23 +219,24 @@ public class HubActivity extends Activity {
                             new String[]{"auto", "light", "dark"}, new String[]{"Auto", "Light", "Dark"}),
                     choiceCard("Text size", null, "text_size", "100",
                             new String[]{"100", "115", "130"}, new String[]{"100%", "115%", "130%"}),
+                    choiceCard("Menu side", null, "menu_side", "right",
+                            new String[]{"left", "right"}, new String[]{"Left", "Right"}),
                     btAutoConnectCard(),
                     actionCard("End CarPlay", "Close CarPlay and rejoin home Wi-Fi",
                             "End CarPlay", LocalShell.Command.END_CARPLAY),
-                    choiceCard("Tyre pressure", null, "tyre_unit", "psi",
-                            new String[]{"psi", "bar"}, new String[]{"psi", "bar"}),
+                    infoCard("CarPlay layout", carplayLayoutText()))); break;
+            case 2: content.addView(cards(
+                    switchCard("Camera in the dash", "Forward camera in the centre window", "dash_camera", false),
+                    switchCard("Open stock camera on Drive", "Stock camera screen instead", "auto_camera", false))); break;
+            case CAR_TAB: content.addView(cards(
                     choiceCard("Car model", "Which car pictures to show", "car_model", "3",
                             new String[]{"3", "y"}, new String[]{"Model 3", "Model Y"}),
                     choiceCard("Driving side", "Which side the steering wheel is on (car pictures)", "drive_side", "rhd",
                             new String[]{"lhd", "rhd"}, new String[]{"Left", "Right"}),
                     carPicturesCard(),
-                    choiceCard("Menu side", null, "menu_side", "right",
-                            new String[]{"left", "right"}, new String[]{"Left", "Right"}),
-                    stepperCard("Range at 100%", "For the km estimate under the battery %", "full_range_km", 410, 150, 700, 5, "km"),                    infoCard("CarPlay layout", carplayLayoutText()))); break;
-            case 2: content.addView(cards(
-                    switchCard("Camera in the dash", "Forward camera in the centre window", "dash_camera", false),
-                    switchCard("Open stock camera on Drive", "Stock camera screen instead", "auto_camera", false))); break;
-            case 3: content.addView(cards(
+                    choiceCard("Tyre pressure", null, "tyre_unit", "psi",
+                            new String[]{"psi", "bar"}, new String[]{"psi", "bar"}),
+                    stepperCard("Range at 100%", "For the km estimate under the battery %", "full_range_km", 410, 150, 700, 5, "km"),
                     switchCard("Rainbow road on Autopilot", "Instead of the blue lane", "autopilot_rainbow", false))); break;
             default: content.addView(cards(
                     switchCard("Show raw CAN values", "Latest raw fields over the centre view, for in-car checks", "raw_overlay", false),

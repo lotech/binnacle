@@ -299,10 +299,10 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         return art;
     }
 
-    /** Driving side (Display → Driving side): left-hand drive uses the lhd car renders. */
+    /** Driving side (Car → Driving side): left-hand drive uses the lhd car renders. */
     public boolean leftHandDrive() { return "lhd".equals(prefs.getString("drive_side", "rhd")); }
 
-    /** Car model (first start, or Display → Car model): "3" (default) or "y". */
+    /** Car model (first start, or Car → Car model): "3" (default) or "y". */
     public boolean modelY() { return "y".equals(prefs.getString("car_model", "3")); }
 
     /** The render set for the model and driving side (CarPacks.HANDS): rhd, lhd, y-rhd or y-lhd. */
