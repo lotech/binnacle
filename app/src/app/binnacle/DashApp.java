@@ -73,6 +73,12 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         if (!b.isEmpty()) car.apply(9, b, false);
     }
 
+    /** 7:00 to 18:59 local time: a guess for Auto before the car has said anything. */
+    private static boolean daytime() {
+        int h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY);
+        return h >= 7 && h < 19;
+    }
+
     public static DashApp get(android.content.Context c) { return (DashApp) c.getApplicationContext(); }
 
     @Override public void onCreate() {
@@ -80,9 +86,10 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
         prefs.registerOnSharedPreferenceChangeListener(this);
         applyTextSize();
-        // until the car's lights are known, Auto starts in the theme it last used
+        // until the car's screen level is known, Auto starts in the theme it last used; a fresh install
+        // has none, and the CAN app only sends the level when it changes, so it goes by the clock
         String mode = prefs.getString("theme", "auto");
-        Style.applyTheme("light".equals(mode) || ("auto".equals(mode) && prefs.getBoolean("theme_last_light", false)));
+        Style.applyTheme("light".equals(mode) || ("auto".equals(mode) && prefs.getBoolean("theme_last_light", daytime())));
         rainbowRoad = prefs.getBoolean("autopilot_rainbow", false);
         startFeed();
         startCompass();
