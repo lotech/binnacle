@@ -4,20 +4,20 @@
 
 <p align="center">A **read-only** replacement instrument-cluster app and tooling for the Carview / ZIQI "A007" 10.25" Tesla Model 3/Y Android cluster (sold as Hansshow / Tesery / VJOYCAR / Satonic).</p>
 
-A replacement Home/dashboard aimed at fixing some of the jank in the shipped software. We were promised over the air updates but they never came so I fixed it myself. Real car data (speed, battery %, gear, odometer, TPMS, lights, parking sensors, doors) and hands off to CarPlay / Android Auto / the reverse camera. The install is fully reversible.
+A replacement Home/dashboard aimed at fixing some of the jank in the shipped software. We were promised over the air updates but they never came so I fixed it myself with the help of Claude. Real car data (speed, battery %, gear, odometer, TPMS, lights, parking sensors, doors) and hands off to CarPlay / Android Auto / the reverse camera. The install is fully reversible.
 
 ![Binnacle in the light theme: speed and gear on the left, the 3D car on a road with parking-sensor arcs and a STOP sign in the centre, battery, sensors and app buttons on the right](docs/images/dash-light.png)
 
 ![The same screen in the dark theme](docs/images/dash-dark.png)
 
-*Parked on the owner's car, light and dark themes. The red "LOGGER RECORDING" badge and eye show because the optional logger is installed and running.*
+*Parked, light and dark themes. The red "LOGGER RECORDING" badge and eye show because the optional logger is installed and running.*
 
 ## Why "Binnacle"?
 On a ship, the binnacle is the stand in front of the helm that holds the compass, lit so the helmsman can read it at a glance.
 
 ## Features
 - **Live car data, never written to:** speed, gear (R P N D), speed-limit sign, indicators and lights, power and regen bar, tyre pressures (psi or bar), parking sensors, doors, boot and frunk, outside temperature, odometer.
-- **Your car, in 3D:** Shows whichever door is open, opens it, and highlights the boot and frunk. In Drive it sits on a moving road with headlight glow, and on Autopilot the lane turns blue (or a rainbow road, if you like). Model 3 or Model Y (asked on first start), left- or right-hand drive, in the original dash's colour options. Different car colours are available via the app and downloaded from this repo.
+- **Your car, in rendered 3D:** Shows whichever door is open, opens it, and highlights the boot and frunk. In Drive it sits on a moving road with headlight glow, and on Autopilot the lane turns blue (or a rainbow road, if you like). Model 3 or Model Y (asked on first start), left- or right-hand drive, in the original dash's colour options. Different car colours are available via the app and downloaded from this repo.
 - **Real battery %:** decoded from a field the stock software mislabels (see below), with a range estimate and charging animation.
 - **Efficiency:** Wh/km over the last 5 km, a 15-minute power and regen graph, and this drive's totals.
 - **GPS compass**
@@ -29,6 +29,7 @@ On a ship, the binnacle is the stand in front of the helm that holds the compass
 - **Steering-wheel control**
 
 ## What it fixes compared with the stock dash
+- **Model Y Support:** the stock dash only showed a Model 3 - now the Model Y is supported as a graphic.
 - **Android Settings Access:** the stock dash went out of its way to hide the normal Android Settings app, Binnacle restores this.
 - **Battery %:** on some cars (mine included) had the stock "battery level" field stuck at 77%, and the stock dash shows another field as "km" when it isn't range at all. Binnacle decodes the real % from that second field, checked against a full 13 % to 100 % charge.
 - **No door pop-up:** the stock software throws a full-screen picture up every time a door or the boot opens. Binnacle keeps your dash in view and shows the doors on its own car instead.
