@@ -18,6 +18,7 @@ On a ship, the binnacle is the stand in front of the helm that holds the compass
 ## Features
 - **Live car data, never written to:** speed, gear (R P N D), speed-limit sign, indicators and lights, power and regen bar, tyre pressures (psi or bar), parking sensors, doors, boot and frunk, outside temperature, odometer.
 - **Your car, in rendered 3D:** Shows whichever door is open, opens it, and highlights the boot and frunk. In Drive it sits on a moving road with headlight glow, and on Autopilot the lane turns blue (or a rainbow road, if you like). Model 3 or Model Y (asked on first start), left- or right-hand drive, in the original dash's colour options. Different car colours are available via the app and downloaded from this repo.
+- **Left/Right hand drive:** Graphics are correct to your car's side of the road with easier to access touch targets for your spare hand.
 - **Real battery %:** decoded from a field the stock software mislabels (see below), with a range estimate and charging animation.
 - **Efficiency:** Wh/km over the last 5 km, a 15-minute power and regen graph, and this drive's totals.
 - **GPS compass**
@@ -27,6 +28,7 @@ On a ship, the binnacle is the stand in front of the helm that holds the compass
 - **CarPlay on your terms:** starts only when you tap CarPlay, and one tap ends it and rejoins your home Wi-Fi.
 - **Light, dark or Auto theme:** Auto follows the screen brightness the car sets, so it goes dark with the car at night.
 - **Steering-wheel control**
+- **Rainbow road on Autopilot** 'nuf said.
 
 ## What it fixes compared with the stock dash
 - **Model Y Support:** the stock dash only showed a Model 3 - now the Model Y is supported as a graphic.
@@ -42,7 +44,7 @@ On a ship, the binnacle is the stand in front of the helm that holds the compass
 - CarPlay/Android Auto in the centre of the screen.
 - Restore 2nd Bluetooth device on the dash.
 - Installed Navigation apps in the centre of the screen with access to Cached data.
-- Improved design with more options for centre screen.
+- Improved design with more options, particularly for centre screen.
 
 ## Install
 No computer or adb needed for the basics.
