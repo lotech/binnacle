@@ -61,8 +61,11 @@ public final class SetupActivity extends Activity {
 
     /** True once the wizard has been finished or skipped (or settings from before it exist). */
     static boolean done(SharedPreferences p) {
-        // installs from before the wizard already answered its questions; one under way has a step saved
-        return p.getBoolean(DONE_KEY, false) || (p.contains("car_model") && p.contains("drive_side") && !p.contains(STEP_KEY));
+        // a run under way (a step saved) wins, also a re-run from Advanced after an earlier finish: the
+        // Home picker brings the dash forward over the wizard and it has to come back. Installs from
+        // before the wizard already answered its questions.
+        if (p.contains(STEP_KEY)) return false;
+        return p.getBoolean(DONE_KEY, false) || (p.contains("car_model") && p.contains("drive_side"));
     }
 
     @Override protected void onCreate(Bundle state) {
