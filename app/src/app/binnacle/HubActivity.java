@@ -199,8 +199,8 @@ public class HubActivity extends Activity {
 
     private void showTab(int i) {
         // rebuilding the same tab (a download finished, the side changed): keep the scroll position
-        final int keepScroll = i == tab && content.getChildCount() > 0 && content.getChildAt(0) instanceof ScrollView
-                ? content.getChildAt(0).getScrollY() : 0;
+        ScrollView old = i == tab ? pageScroll() : null;
+        final int keepScroll = old != null ? old.getScrollY() : 0;
         tab = i;
         for (int t = 0; t < tabViews.size(); t++) {
             TextView v = tabViews.get(t);
@@ -245,8 +245,8 @@ public class HubActivity extends Activity {
                             + "Model Y: based on \"2021 Tesla Model Y\" by tonielpro520 (Sketchfab), CC BY 4.0, modified "
                             + "(recoloured, posed, rendered)."))); break;
         }
-        if (keepScroll > 0 && content.getChildCount() > 0) {
-            final View sv = content.getChildAt(0);
+        final ScrollView sv = pageScroll();
+        if (keepScroll > 0 && sv != null) {
             sv.post(new Runnable() { @Override public void run() { sv.scrollTo(0, keepScroll); } });
         }
     }
@@ -288,9 +288,7 @@ public class HubActivity extends Activity {
             lp.setMargins(dp(4), dp(4), dp(4), dp(4));
             grid.addView(tile, lp);
         }
-        ScrollView sv = new ScrollView(this);
-        sv.addView(grid);
-        return sv;
+        return scroller(grid);
     }
 
     private List<Entry> loadApps() {
@@ -386,9 +384,53 @@ public class HubActivity extends Activity {
             lp.height = 1;
             grid.addView(new View(this), lp);
         }
-        ScrollView sv = new ScrollView(this);
-        sv.addView(grid);
-        return sv;
+        return scroller(grid);
+    }
+
+    /** The scrolling page on screen (inside its scroller() frame), or null. */
+    private ScrollView pageScroll() {
+        View v = content.getChildCount() > 0 ? content.getChildAt(0) : null;
+        if (v instanceof FrameLayout && ((FrameLayout) v).getChildCount() > 0) v = ((FrameLayout) v).getChildAt(0);
+        return v instanceof ScrollView ? (ScrollView) v : null;
+    }
+
+    /**
+     * A settings page that shows when there's more below: a scrollbar that never fades, and a
+     * "More below" pill at the bottom while the page can still scroll down.
+     */
+    private View scroller(View page) {
+        final ScrollView sv = new ScrollView(this);
+        sv.setVerticalScrollBarEnabled(true);
+        sv.setScrollbarFadingEnabled(false);
+        sv.setScrollBarSize(dp(6));
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            GradientDrawable thumb = new GradientDrawable();
+            thumb.setColor(Style.MUTED);
+            thumb.setCornerRadius(dp(3));
+            sv.setVerticalScrollbarThumbDrawable(thumb);
+        }
+        sv.addView(page);
+        FrameLayout frame = new FrameLayout(this);
+        frame.addView(sv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        final TextView more = text("More below  \u25BE", 15, Style.FG);
+        more.setPadding(dp(18), dp(6), dp(18), dp(6));
+        GradientDrawable pill = new GradientDrawable();
+        pill.setColor(Style.PANEL2);
+        pill.setStroke(dp(1), Style.LINE);
+        pill.setCornerRadius(dp(16));
+        more.setBackground(pill);
+        frame.addView(more, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
+        final Runnable update = new Runnable() {
+            @Override public void run() { more.setVisibility(sv.canScrollVertically(1) ? View.VISIBLE : View.GONE); }
+        };
+        sv.getViewTreeObserver().addOnScrollChangedListener(new android.view.ViewTreeObserver.OnScrollChangedListener() {
+            @Override public void onScrollChanged() { update.run(); }
+        });
+        sv.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) { sv.post(update); }
+        });
+        return frame;
     }
 
     private LinearLayout card(String title, String summary) {
