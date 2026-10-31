@@ -161,19 +161,19 @@ public class HubActivity extends Activity {
     private final DashApp.Listener themeListener = new DashApp.Listener() {
         @Override public void onCarChanged(int code) {
             if (code == DashApp.THEME_CHANGED && lightBuilt != Style.light) recreate();
-            if (code == DashApp.PACKS_CHANGED && tab == 1) showTab(1);   // whichever Car pictures card is showing now
+            if (code == DashApp.PACKS_CHANGED && tab == CAR_TAB) showTab(CAR_TAB);   // whichever Car pictures card is showing now
             // the car reports its colour (code 9) after the card was built: rebuild it for that colour
-            if (tab == 1 && packCardColour != DashApp.get(HubActivity.this).car.carColour) showTab(1);
+            if (tab == CAR_TAB && packCardColour != DashApp.get(HubActivity.this).car.carColour) showTab(CAR_TAB);
         }
     };
 
     private final android.os.Handler main = new android.os.Handler(android.os.Looper.getMainLooper());
 
-    /** Car model or driving side changed: rebuild the Display tab so Car pictures shows (and fetches) that set. */
+    /** Car model or driving side changed: rebuild the Car tab so Car pictures shows (and fetches) that set. */
     private final SharedPreferences.OnSharedPreferenceChangeListener sideListener =
             new SharedPreferences.OnSharedPreferenceChangeListener() {
                 @Override public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
-                    if (("drive_side".equals(key) || "car_model".equals(key)) && tab == 1) showTab(1);
+                    if (("drive_side".equals(key) || "car_model".equals(key)) && tab == CAR_TAB) showTab(CAR_TAB);
                 }
             };
 
@@ -193,14 +193,17 @@ public class HubActivity extends Activity {
         super.onResume();
         if (textScaleBuilt != Style.textScale) { recreate(); return; }   // text size changed: rebuild at the new size
         if (lightBuilt != Style.light) { recreate(); return; }           // theme changed meanwhile (Auto)
-        if (tab == 1) showTab(1);                                          // CarPlay layout may have changed meanwhile
+        if (tab == 1 || tab == CAR_TAB) showTab(tab);                      // CarPlay layout / Home app may have changed meanwhile
         else if (tab >= 4) showTab(tab);                                   // back from the uninstaller: logger state
     }
 
+    /** The Car tab: car model, driving side, car pictures, tyres, range. */
+    private static final int CAR_TAB = 3;
+
     private void showTab(int i) {
         // rebuilding the same tab (a download finished, the side changed): keep the scroll position
-        final int keepScroll = i == tab && content.getChildCount() > 0 && content.getChildAt(0) instanceof ScrollView
-                ? content.getChildAt(0).getScrollY() : 0;
+        ScrollView old = i == tab ? pageScroll() : null;
+        final int keepScroll = old != null ? old.getScrollY() : 0;
         tab = i;
         for (int t = 0; t < tabViews.size(); t++) {
             TextView v = tabViews.get(t);
@@ -216,23 +219,24 @@ public class HubActivity extends Activity {
                             new String[]{"auto", "light", "dark"}, new String[]{"Auto", "Light", "Dark"}),
                     choiceCard("Text size", null, "text_size", "100",
                             new String[]{"100", "115", "130"}, new String[]{"100%", "115%", "130%"}),
+                    choiceCard("Menu side", null, "menu_side", "right",
+                            new String[]{"left", "right"}, new String[]{"Left", "Right"}),
                     btAutoConnectCard(),
                     actionCard("End CarPlay", "Close CarPlay and rejoin home Wi-Fi",
                             "End CarPlay", LocalShell.Command.END_CARPLAY),
-                    choiceCard("Tyre pressure", null, "tyre_unit", "psi",
-                            new String[]{"psi", "bar"}, new String[]{"psi", "bar"}),
-                    choiceCard("Car model", "Which car pictures to show", "car_model", "3",
-                            new String[]{"3", "y"}, new String[]{"Model 3", "Model Y"}),
-                    choiceCard("Driving side", "Which side the steering wheel is on (car pictures)", "drive_side", "rhd",
-                            new String[]{"rhd", "lhd"}, new String[]{"Right", "Left"}),
-                    carPicturesCard(),
-                    choiceCard("Menu side", null, "menu_side", "right",
-                            new String[]{"left", "right"}, new String[]{"Left", "Right"}),
-                    stepperCard("Range at 100%", "For the km estimate under the battery %", "full_range_km", 410, 150, 700, 5, "km"),                    infoCard("CarPlay layout", carplayLayoutText()))); break;
+                    infoCard("CarPlay layout", carplayLayoutText()))); break;
             case 2: content.addView(cards(
                     switchCard("Camera in the dash", "Forward camera in the centre window", "dash_camera", false),
                     switchCard("Open stock camera on Drive", "Stock camera screen instead", "auto_camera", false))); break;
-            case 3: content.addView(cards(
+            case CAR_TAB: content.addView(cards(
+                    choiceCard("Car model", "Which car pictures to show", "car_model", "3",
+                            new String[]{"3", "y"}, new String[]{"Model 3", "Model Y"}),
+                    choiceCard("Driving side", "Which side the steering wheel is on (car pictures)", "drive_side", "rhd",
+                            new String[]{"lhd", "rhd"}, new String[]{"Left", "Right"}),
+                    carPicturesCard(),
+                    choiceCard("Tyre pressure", null, "tyre_unit", "psi",
+                            new String[]{"psi", "bar"}, new String[]{"psi", "bar"}),
+                    stepperCard("Range at 100%", "For the km estimate under the battery %", "full_range_km", 410, 150, 700, 5, "km"),
                     switchCard("Rainbow road on Autopilot", "Instead of the blue lane", "autopilot_rainbow", false))); break;
             default: content.addView(cards(
                     switchCard("Show raw CAN values", "Latest raw fields over the centre view, for in-car checks", "raw_overlay", false),
@@ -245,8 +249,8 @@ public class HubActivity extends Activity {
                             + "Model Y: based on \"2021 Tesla Model Y\" by tonielpro520 (Sketchfab), CC BY 4.0, modified "
                             + "(recoloured, doors separated and hinged, mirrored for right-hand drive, posed, rendered)."))); break;
         }
-        if (keepScroll > 0 && content.getChildCount() > 0) {
-            final View sv = content.getChildAt(0);
+        final ScrollView sv = pageScroll();
+        if (keepScroll > 0 && sv != null) {
             sv.post(new Runnable() { @Override public void run() { sv.scrollTo(0, keepScroll); } });
         }
     }
@@ -288,9 +292,7 @@ public class HubActivity extends Activity {
             lp.setMargins(dp(4), dp(4), dp(4), dp(4));
             grid.addView(tile, lp);
         }
-        ScrollView sv = new ScrollView(this);
-        sv.addView(grid);
-        return sv;
+        return scroller(grid);
     }
 
     private List<Entry> loadApps() {
@@ -386,9 +388,56 @@ public class HubActivity extends Activity {
             lp.height = 1;
             grid.addView(new View(this), lp);
         }
-        ScrollView sv = new ScrollView(this);
-        sv.addView(grid);
-        return sv;
+        return scroller(grid);
+    }
+
+    /** The scrolling page on screen (inside its scroller() frame), or null. */
+    private ScrollView pageScroll() {
+        View v = content.getChildCount() > 0 ? content.getChildAt(0) : null;
+        if (v instanceof FrameLayout && ((FrameLayout) v).getChildCount() > 0) v = ((FrameLayout) v).getChildAt(0);
+        return v instanceof ScrollView ? (ScrollView) v : null;
+    }
+
+    /**
+     * A settings page that shows when there's more below: a scrollbar that never fades, and a
+     * "More below" pill at the bottom while the page can still scroll down.
+     */
+    private View scroller(View page) {
+        final ScrollView sv = new ScrollView(this);
+        sv.setVerticalScrollBarEnabled(true);
+        sv.setScrollbarFadingEnabled(false);
+        sv.setScrollBarSize(dp(6));
+        // the bar sits in its own gutter at the right edge, clear of the right-hand cards
+        sv.setScrollBarStyle(View.SCROLLBARS_OUTSIDE_OVERLAY);
+        sv.setPadding(0, 0, dp(16), 0);
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            GradientDrawable thumb = new GradientDrawable();
+            thumb.setColor(Style.MUTED);
+            thumb.setCornerRadius(dp(3));
+            sv.setVerticalScrollbarThumbDrawable(thumb);
+        }
+        sv.addView(page);
+        FrameLayout frame = new FrameLayout(this);
+        frame.addView(sv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        final TextView more = text("More below  \u25BE", 15, Style.FG);
+        more.setPadding(dp(18), dp(6), dp(18), dp(6));
+        GradientDrawable pill = new GradientDrawable();
+        pill.setColor(Style.PANEL2);
+        pill.setStroke(dp(1), Style.LINE);
+        pill.setCornerRadius(dp(16));
+        more.setBackground(pill);
+        frame.addView(more, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
+        final Runnable update = new Runnable() {
+            @Override public void run() { more.setVisibility(sv.canScrollVertically(1) ? View.VISIBLE : View.GONE); }
+        };
+        sv.getViewTreeObserver().addOnScrollChangedListener(new android.view.ViewTreeObserver.OnScrollChangedListener() {
+            @Override public void onScrollChanged() { update.run(); }
+        });
+        sv.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            @Override public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) { sv.post(update); }
+        });
+        return frame;
     }
 
     private LinearLayout card(String title, String summary) {
@@ -832,6 +881,9 @@ public class HubActivity extends Activity {
         b.setFocusable(true);
         b.setClickable(true);
         b.setBackground(states(Style.PANEL2, 0xff1f5b80, Style.LINE, 12));
+        // white on the blue selected fill in both themes (the light theme's dark text was unreadable on it)
+        b.setTextColor(new android.content.res.ColorStateList(
+                new int[][]{{android.R.attr.state_selected}, {}}, new int[]{0xffffffff, Style.FG}));
         return b;
     }
 

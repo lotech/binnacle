@@ -104,20 +104,23 @@ final class BinnacleDialog {
         return d;
     }
 
-    /** Rounded button: panel fill, accent outline when focused by the wheel, lighter while pressed. */
+    /**
+     * Rounded button that reads as a button in both themes: a visible outline at rest, the accent
+     * outline when focused by the wheel, a darker fill while pressed.
+     */
     private static StateListDrawable button(Activity a) {
         StateListDrawable s = new StateListDrawable();
-        s.addState(new int[]{android.R.attr.state_pressed}, shape(a, Style.LINE, 0));
-        s.addState(new int[]{android.R.attr.state_focused}, shape(a, Style.PANEL2, Style.ACCENT));
-        s.addState(new int[]{}, shape(a, Style.PANEL2, 0));
+        s.addState(new int[]{android.R.attr.state_pressed}, shape(a, Style.LINE, Style.MUTED, 2));
+        s.addState(new int[]{android.R.attr.state_focused}, shape(a, Style.PANEL2, Style.ACCENT, 3));
+        s.addState(new int[]{}, shape(a, Style.PANEL2, Style.MUTED, 2));
         return s;
     }
 
-    private static GradientDrawable shape(Activity a, int fill, int stroke) {
+    private static GradientDrawable shape(Activity a, int fill, int stroke, int strokeDp) {
         GradientDrawable g = new GradientDrawable();
         g.setColor(fill);
         g.setCornerRadius(dp(a, 14));
-        if (stroke != 0) g.setStroke(dp(a, 3), stroke);
+        g.setStroke(dp(a, strokeDp), stroke);
         return g;
     }
 
