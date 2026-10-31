@@ -832,6 +832,9 @@ public class HubActivity extends Activity {
         b.setFocusable(true);
         b.setClickable(true);
         b.setBackground(states(Style.PANEL2, 0xff1f5b80, Style.LINE, 12));
+        // white on the blue selected fill in both themes (the light theme's dark text was unreadable on it)
+        b.setTextColor(new android.content.res.ColorStateList(
+                new int[][]{{android.R.attr.state_selected}, {}}, new int[]{0xffffffff, Style.FG}));
         return b;
     }
 
