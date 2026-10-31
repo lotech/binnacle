@@ -4,7 +4,7 @@
 
 <p align="center">A **read-only** replacement instrument-cluster app and tooling for the Carview / ZIQI "A007" 10.25" Tesla Model 3/Y Android cluster (sold as Hansshow / Tesery / VJOYCAR / Satonic).</p>
 
-A replacement Home/dashboard aimed at fixing some of the jank in the shipped software. We were promised over the air updates but they never came so I fixed it myself with the help of Claude. Real car data (speed, battery %, gear, odometer, TPMS, lights, parking sensors, doors) and hands off to CarPlay / Android Auto / the reverse camera. The install is fully reversible.
+Aimed at fixing some of the jank in the shipped software. We were promised over the air updates which never came. After trying to patch the app, I ended up fixing the app by just replacing it with the help of Claude. This whole new dash uses the same real car data (speed, battery %, gear, odometer, TPMS, lights, parking sensors, doors) and also supports correctly handing off to CarPlay / Android Auto and the forward camera. The install is fully reversible.
 
 ![Binnacle in the light theme: speed and gear on the left, the 3D car on a road with parking-sensor arcs and a STOP sign in the centre, battery, sensors and app buttons on the right](docs/images/dash-light.png)
 
@@ -32,15 +32,15 @@ On a ship, the binnacle is the stand in front of the helm that holds the compass
 - **Model Y Support:** the stock dash only showed a Model 3 - now the Model Y is supported as a graphic.
 - **Android Settings Access:** the stock dash went out of its way to hide the normal Android Settings app, Binnacle restores this.
 - **Battery %:** on some cars (mine included) had the stock "battery level" field stuck at 77%, and the stock dash shows another field as "km" when it isn't range at all. Binnacle decodes the real % from that second field, checked against a full 13 % to 100 % charge.
-- **No door pop-up:** the stock software throws a full-screen picture up every time a door or the boot opens. Binnacle keeps your dash in view and shows the doors on its own car instead.
 - **Camera that works:** the stock camera could fail with "camera error 4" after a reboot and judders on the 56 Hz panel. Binnacle sets up the camera input itself, paces frames evenly, and hides the start-up roll.
 - **CarPlay that doesn't hijack your phone:** with the stock setup, CarPlay grabbed the phone and the unit's Wi-Fi whenever it could. Now it only connects when asked.
-- **No stray Popups:** the stock dash's background pop-ups over the screen are gone.
+- **No stray Popups:** the stock dash's background pop-ups over the screen are gone. No more full-screen picture up every time a door or the boot opens. Binnacle keeps your dash in view and shows the doors on its own car instead.
 - **Warnings that clear on time:** the attention warning goes away when the car clears it, not seconds later.
 - **Theme that doesn't flip-flop:** Auto waits for the car's light level to settle before switching.
 
 ## Planned/Hoped for Features.
 - CarPlay/Android Auto in the centre of the screen.
+- Restore 2nd Bluetooth device on the dash.
 - Installed Navigation apps in the centre of the screen with access to Cached data.
 - Improved design with more options for centre screen.
 
@@ -65,13 +65,13 @@ Sold as an "Android 12" 10.25" cluster for the Model 3 and Model Y under several
 | **Screen** | 1920 × 720 at 320 dpi. The panel runs at **56 Hz**, which makes 30 fps video judder unless it's paced (Binnacle does this for the camera). |
 | **Car data** | Two MCUs: one decodes the Tesla CAN bus and sends it over a serial port to the stock CAN app (`com.xbs.canapp`), which any app can subscribe to. Brake lights, true range and steering angle aren't in that feed, and on some cars the battery level is stuck (see above). |
 | **Wi-Fi** | One radio. Wireless CarPlay turns it into a hotspot, so the unit drops off your home Wi-Fi (and ADB) while CarPlay is connected. |
-| **Bluetooth** | A separate Goodocom module handles calls and audio. Android's own Bluetooth is off, so there's no Bluetooth LE and apps that need it (such as S3XY Commander) can't connect. |
+| **Bluetooth** | A separate Goodocom module handles calls and audio. Android's own Bluetooth is off by default, so there's no Bluetooth LE and apps that need it (such as S3XY Commander) can't connect. |
 | **CarPlay / Android Auto** | ZLink, preinstalled. The unit rolls ZLink back to its preinstalled version at every boot, so in-app updates don't stick. |
 | **Camera** | A TP9950 decoder. Only the TVI 1080p 30 fps input format gives a clean picture with the supplied camera. |
 | **GPS** | Built in. Its daemon crashes often and, as shipped, writes a large crash dump to storage each time. |
 | **USB-C** | Host only: you can't use it for ADB. ADB works over Wi-Fi (see `docs/ADB-GUIDE.md`), and once on, it accepts connections from anything on your network without a key. |
 
-Changes we made to the unit itself (outside the app), each with its undo: `docs/UNIT-CHANGES.md`. No stock apps were removed.
+Changes made to the unit itself (outside the app), each with its undo: are located in `docs/UNIT-CHANGES.md`. No stock apps were removed.
 
 > **ABSOLUTE RULE — RECEIVE ONLY.** Nothing in this project ever sends anything to the car's CAN bus or the MCU. The dash app only *subscribes* to the stock CAN service and *receives* data. This is enforced in code (one class, two allowed binder calls: subscribe/unsubscribe) and by a build-time guard (`app/tools/check_readonly.sh`) that refuses to build if any write path is referenced. Never weaken or bypass it.
 
@@ -80,7 +80,7 @@ In daily use on my 2023 Model 3 since 27 Oct 2026, as the unit's Home app (it re
 - ✅ Reverse-engineered the stock CAN data interface and built a **field map** (`docs/FIELD_MAP.md`).
 - ✅ An optional read-only **logger** (`capture/`), a developer tool that records the car data feed. It never records location, isn't installed by default, and is only started by the dash if you opt in.
 - ✅ The **dash app** (`app/`): speed, gear, lights, power/regen, battery % (decoded, see below), tyres, parking sensors, doors, Autopilot, light/dark/auto theme, forward camera inside the dash, CarPlay start/end. See `app/README.md`.
-- 🟡 Still open: split-screen CarPlay (ZLink draws at the wrong width), the car's Bluetooth reconnecting to the unit by itself, a phone-call/mic test, and the logger restarting itself after car sleep.
+- 🟡 Still open: split-screen CarPlay (ZLink draws at the wrong width), the car's Bluetooth reconnecting to the unit by itself, a phone-call/mic test.
 
 ## Layout
 | Folder | What |
