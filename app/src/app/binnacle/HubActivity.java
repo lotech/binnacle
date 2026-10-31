@@ -246,7 +246,7 @@ public class HubActivity extends Activity {
             case 0: content.addView(appsGrid()); break;
             case 1: content.addView(cards(          // most used first; the rest below the fold
                     homeCard(),
-                    choiceCard("Theme", "Auto: follows the car's screen", "theme", "dark",
+                    choiceCard("Theme", null, "theme", "dark",
                             new String[]{"auto", "light", "dark"}, new String[]{"Auto", "Light", "Dark"}),
                     choiceCard("Text size", null, "text_size", "100",
                             new String[]{"100", "115", "130"}, new String[]{"100%", "115%", "130%"}),
