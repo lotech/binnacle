@@ -82,7 +82,10 @@ In daily use on my 2023 Model 3 since 27 Oct 2026, as the unit's Home app (it re
 - ✅ Reverse-engineered the stock CAN data interface and built a **field map** (`docs/FIELD_MAP.md`).
 - ✅ An optional read-only **logger** (`capture/`), a developer tool that records the car data feed. It never records location, isn't installed by default, and is only started by the dash if you opt in.
 - ✅ The **dash app** (`app/`): speed, gear, lights, power/regen, battery % (decoded, see below), tyres, parking sensors, doors, Autopilot, light/dark/auto theme, forward camera inside the dash, CarPlay start/end. See `app/README.md`.
-- 🟡 Still open: split-screen CarPlay (ZLink draws at the wrong width), the car's Bluetooth reconnecting to the unit by itself, a phone-call/mic test.
+- ✅ Re-enabled unit bluetooth not just the MCU Bluetooth. Battled crappy Microphone support and added echo cancellation.
+- ✅ Test Zlink alternative (xcertplay) and match factory functionality of Zlink.
+- ✅ Implement initial setup wizard that enables (or disables) functionality from the default dashboard app.
+- 🟡 Still open: split-screen CarPlay (ZLink draws at the wrong width), a phone-call/mic test.
 
 ## Layout
 | Folder | What |
