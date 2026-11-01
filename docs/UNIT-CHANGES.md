@@ -1,6 +1,6 @@
 # Changes made to the unit outside the app
 
-Binnacle itself installs as a normal app. Getting the most out of the unit took a few changes to the stock system as well. None of them touch the system partitions, and none send anything to the car or the MCU. Each one can be undone with the command shown.
+Binnacle itself installs as a normal app. Getting the most out of the unit took a few changes to the stock system as well. None of them touch the system partitions, and none send anything to the car or the MCU (an MCU write would be listed here with its undo, and only after the owner approved that exact message). Each one can be undone with the command shown.
 
 **No stock apps were removed.** The stock dash (`com.xbs.launcher1`), the CAN app, the camera app and ZLink all stay installed. The only things uninstalled were this project's own test builds.
 
