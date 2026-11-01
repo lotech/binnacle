@@ -75,7 +75,7 @@ Sold as an "Android 12" 10.25" cluster for the Model 3 and Model Y under several
 
 Changes made to the unit itself (outside the app), each with its undo: are located in `docs/UNIT-CHANGES.md`. No stock apps were removed.
 
-> **ABSOLUTE RULE — RECEIVE ONLY.** Nothing in this project ever sends anything to the car's CAN bus or the MCU. The dash app only *subscribes* to the stock CAN service and *receives* data. This is enforced in code (one class, two allowed binder calls: subscribe/unsubscribe) and by build-time guards that refuse to build if any write path is referenced: `app/tools/check_readonly.sh` on the source and `app/tools/check_bytecode.sh` on the compiled classes and APK (the logger has its own pair in `capture/tools/`; `app/tools/test_guards.sh` checks that the guards still refuse known bypasses). Never weaken or bypass them.
+> **ABSOLUTE RULE — NOTHING TO THE CAR.** Nothing in this project ever sends anything onto the car's CAN bus or otherwise affects the car itself. The dash app *subscribes* to the stock CAN service and *receives* data. A write to the dash's own MCU is a narrow, owner-approved exception, one pinned message at a time, never assumed (see `CLAUDE.md`). This is enforced in code (one class, two allowed binder calls: subscribe/unsubscribe) and by build-time guards that refuse to build if any write path is referenced: `app/tools/check_readonly.sh` on the source and `app/tools/check_bytecode.sh` on the compiled classes and APK (the logger has its own pair in `capture/tools/`; `app/tools/test_guards.sh` checks that the guards still refuse known bypasses). Never weaken or bypass them.
 
 ## Status
 In daily use on my 2023 Model 3 since 27 Oct 2026, as the unit's Home app (it replaces the stock dash; the stock launcher stays installed as the fallback).
@@ -109,7 +109,7 @@ adb install -r capture/build/BinnacleLogger.apk
 It is **read-only** (subscribe + log only). Undo: `adb uninstall app.binnacle.logger`, or Advanced → Remove drive logger in Binnacle.
 
 ## Safety & reversibility
-- The app only **reads** the stock CAN feed; it never writes to the MCU or the vehicle CAN bus (see `CLAUDE.md`).
+- The app only **reads** the stock CAN feed and never writes to the vehicle CAN bus. Writes to the dash's own MCU are acceptable but not preferred: each one needs the owner's go for that exact message and stays pinned in the guards (see `CLAUDE.md`).
 - It installs as a normal app and is set as the default Home; the stock launcher stays installed as the fallback. No system-partition changes. Reverse by switching Home back (`adb shell su 0 cmd package set-home-activity com.xbs.launcher1/.MainActivity`) or uninstalling.
 - The few things it does on the unit itself are pinned by the same guard: a fixed list of shell-user commands through the unit's own ADB (`LocalShell`: cycle Wi-Fi to end CarPlay, read/set Bluetooth auto-connect), and the camera decoder's two input-select nodes in `/sys/ziqi/camera`.
 
