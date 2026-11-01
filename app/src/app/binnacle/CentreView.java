@@ -781,11 +781,15 @@ public class CentreView extends View {
         if (car.gear == CarState.GEAR_UNKNOWN) x = badge(c, x + 8, mode, Style.MUTED);
         String p = app.feedProblem();
         if (p != null) x = badge(c, x + 8, p.toUpperCase(), Style.BAD);   // before anything optional, so it is never pushed off
-        // a drive logger must never run unnoticed (the owner, 31 Oct): always shown, can't be turned off
-        if (app.oldLoggerInstalled()) x = badge(c, x + 8, "OLD LOGGER INSTALLED", Style.BAD);
-        if (app.loggerRecording()) x = badge(c, x + 8, "● LOGGER RECORDING", Style.BAD);
-        else if (app.loggerInstalled()) x = badge(c, x + 8, "LOGGER INSTALLED", Style.WARN);
-        if (car.doors > 0) x = badge(c, x + 8, car.doorsText().toUpperCase(), Style.WARN);   // safety first
+        // a drive logger must never run unnoticed (the owner, 31 Oct): always shown while it records,
+        // kept short; an idle logger needs no chip (fewer chips, the owner, 1 Nov)
+        if (app.oldLoggerInstalled()) x = badge(c, x + 8, "OLD LOGGER", Style.BAD);
+        if (app.loggerRecording()) x = badge(c, x + 8, "● REC", Style.BAD);
+        // open doors, boot or frunk: the parked car already shows them; the chip is only for the
+        // driving view, or when the car render can't show them (none, or frames missing) (safety first)
+        CarArt art = app.art();
+        boolean onCar = blend == 0 && art != null && art.src != null && art.side != null && doorScene.canShow(car.doors);
+        if (car.doors > 0 && !onCar) x = badge(c, x + 8, car.doorsText().toUpperCase(), Style.WARN);
         if (app.isDemo()) badge(c, x + 8, "DEMO DATA", Style.WARN);
     }
 
