@@ -28,7 +28,9 @@ import java.util.concurrent.ThreadFactory;
  *   the closed door underneath (in-car, 29 Oct).
  * Frames are decoded lazily on a background thread the first time a door opens and kept in a
  * bounded cache; a frame that fails to load is skipped (never retried in a loop).
- * Boot / frunk have no opening frames: they are tinted with the stock launcher's silhouettes (drawCovers).
+ * Boot / frunk open: the door-less body is swapped for one rendered with the lid(s) open
+ * (lids/<view>_{boot,frunk,both}.png); the boot alone turns the car to the view from behind. Older
+ * packs without lids/ fall back to tinting the lid with the stock-style silhouette (drawCovers).
  */
 final class DoorScene {
 
@@ -75,6 +77,8 @@ final class DoorScene {
         if (doors <= 0) return VIEW_LEFT;
         boolean right = (doors & (0x80 | 0x20)) != 0, left = (doors & (0x40 | 0x10)) != 0;
         if (left && right) return VIEW_BEHIND;
+        // the boot alone: from behind, where the open boot shows best (the side views open it only halfway)
+        if (!left && !right && (doors & BOOT_BIT) != 0 && (doors & FRUNK_BIT) == 0) return VIEW_BEHIND;
         if (right) return VIEW_RIGHT;
         return VIEW_LEFT;
     }
@@ -184,10 +188,14 @@ final class DoorScene {
             anyShown |= Math.round(open[d]) > 0 || want;
         }
 
-        // 3. with a door open at a resting view: the door-less body plus every door of that view
+        // 3. with a door, boot or frunk open at a resting view: the door-less body (with the lids
+        //    open, when the pack has them) plus every door of that view
         int[] viewDoors = turn == VIEW_LEFT ? LEFT_DOORS : turn == VIEW_RIGHT ? RIGHT_DOORS : turn == VIEW_BEHIND ? ALL_DOORS : null;
-        if (anyShown && viewDoors != null) {
-            Bitmap body = loaded(bodyPath(turn));
+        String lids = forcedView < 0 && facing ? lidPath(turn, doors) : null;
+        Bitmap lidBody = lids == null ? null : loaded(lids);
+        boolean lidsShown = lidBody != null;            // not loaded yet / old pack: tinted covers instead
+        if ((anyShown || lidBody != null) && viewDoors != null) {
+            Bitmap body = lidBody != null ? lidBody : loaded(bodyPath(turn));
             Bitmap[] layers = new Bitmap[4];
             boolean ready = body != null;
             for (int d : viewDoors) {
@@ -198,7 +206,7 @@ final class DoorScene {
                 drawnView = turn;
                 c.drawBitmap(body, null, frame, bmp);
                 for (int d : viewDoors) drawDoor(c, d, layers[d], frame);
-                drawCovers(c, doors, frame);
+                if (!lidsShown) drawCovers(c, doors, frame);
                 if (!animating) lastMs = 0;
                 return animating;
             }
@@ -278,6 +286,16 @@ final class DoorScene {
 
     private static String bodyPath(int view) {
         return "body/" + (view == VIEW_LEFT ? "left" : view == VIEW_RIGHT ? "right" : "middle") + ".png";
+    }
+
+    /** The body with the open lid(s) for this resting view, or null with neither open / mid-turn. */
+    private static String lidPath(int view, int doors) {
+        if (doors <= 0) return null;
+        boolean boot = (doors & BOOT_BIT) != 0, frunk = (doors & FRUNK_BIT) != 0;
+        if (!boot && !frunk) return null;
+        String v = view == VIEW_LEFT ? "left" : view == VIEW_RIGHT ? "right" : view == VIEW_BEHIND ? "middle" : null;
+        if (v == null) return null;
+        return "lids/" + v + "_" + (boot && frunk ? "both" : boot ? "boot" : "frunk") + ".png";
     }
 
     private String doorPath(int d, boolean behind, int f) {
