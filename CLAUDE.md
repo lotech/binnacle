@@ -41,7 +41,7 @@ Approved so far: Bluetooth auto-connect (`settings put system xbs_isautoconnect`
 
 ## Must-keep features — never break these
 - **Forward/reverse camera**: separate app `com.xbs.frontcam`, activity `com.xbs.frontcam.CameraActivity` (also responds to intent `com.xbs.action.reqcam`). Auto-shows on Drive via the CAN `frontcamstate` flag — a replacement Home re-does that (watch the flag, launch the camera). Independent of the Home app otherwise.
-- **CarPlay / Android Auto** via ZLink (`com.zjinnova.zlink`) — the licensed *xinbasi-a007* build. Launch by intent; do not replace it.
+- **CarPlay / Android Auto**: CarPlay opens xcertplay (`com.shilapi.xcertplay/.CarPlayHostActivity`) when it is installed (owner, 1 Nov), otherwise ZLink (`com.zjinnova.zlink`, the licensed *xinbasi-a007* build, which also does Android Auto). Launch by intent. Never uninstall or disable ZLink; with xcertplay installed it is only hidden from Binnacle's app list.
 - Keep the stock launcher `com.xbs.launcher1` installed as the **fallback Home**.
 
 ## ADB / network facts
