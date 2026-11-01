@@ -786,8 +786,9 @@ public class CentreView extends View {
         if (app.oldLoggerInstalled()) x = badge(c, x + 8, "OLD LOGGER", Style.BAD);
         if (app.loggerRecording()) x = badge(c, x + 8, "● REC", Style.BAD);
         // open doors, boot or frunk: the parked car already shows them; the chip is only for the
-        // driving view (or with no car render), where they can't be seen (safety first)
-        boolean onCar = blend == 0 && app.art() != null && app.art().src != null;
+        // driving view, or when the car render can't show them (none, or frames missing) (safety first)
+        CarArt art = app.art();
+        boolean onCar = blend == 0 && art != null && art.src != null && art.side != null && doorScene.canShow(car.doors);
         if (car.doors > 0 && !onCar) x = badge(c, x + 8, car.doorsText().toUpperCase(), Style.WARN);
         if (app.isDemo()) badge(c, x + 8, "DEMO DATA", Style.WARN);
     }

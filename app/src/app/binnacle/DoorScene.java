@@ -247,10 +247,39 @@ final class DoorScene {
         if (doors <= 0 || (doors & (BOOT_BIT | FRUNK_BIT)) == 0 || forcedView >= 0) return;
         String side = turn == VIEW_LEFT ? "left" : turn == VIEW_RIGHT ? "right" : turn == VIEW_BEHIND ? "mid" : null;
         if (side == null) return;                                       // mid-turn: wait for a resting view
-        String name = src == null ? "" : src.name;
-        String tint = name.contains("white") ? "white" : name.contains("red") ? "yellow" : "red";
+        String tint = coverTint();
         if ((doors & BOOT_BIT) != 0) drawCover(c, "covers/backcover_" + tint + "_" + side + ".png", BOOT_XY, frame);
         if ((doors & FRUNK_BIT) != 0) drawCover(c, "covers/frontcover_" + tint + "_" + side + ".png", FRUNK_XY, frame);
+    }
+
+    /**
+     * False when the parked car can't show what is open because a frame it needs failed to load
+     * (an incomplete or broken pack): the caller keeps its text warning then. Frames not tried yet
+     * count as showable, so the warning doesn't flash while they load.
+     */
+    boolean canShow(int doors) {
+        if (doors <= 0) return true;
+        if (src == null) return false;
+        int view = targetView(doors);
+        if (failed.contains(bodyPath(view))) return false;
+        for (int d = 0; d < 4; d++) {
+            if ((doors & DOOR_BITS[d]) != 0 && failed.contains(doorPath(d, view == VIEW_BEHIND, DOOR_FRAMES - 1))) return false;
+        }
+        String lid = lidPath(view, doors);
+        if (lid != null && failed.contains(lid)) {
+            // older packs: the tinted cover marks the lid instead
+            String side = view == VIEW_LEFT ? "left" : view == VIEW_RIGHT ? "right" : "mid";
+            String tint = coverTint();
+            if ((doors & BOOT_BIT) != 0 && failed.contains("covers/backcover_" + tint + "_" + side + ".png")) return false;
+            if ((doors & FRUNK_BIT) != 0 && failed.contains("covers/frontcover_" + tint + "_" + side + ".png")) return false;
+        }
+        return true;
+    }
+
+    /** Cover tint as stock: red, or white on a white car and yellow on a red one. */
+    private String coverTint() {
+        String name = src == null || src.name == null ? "" : src.name;
+        return name.contains("white") ? "white" : name.contains("red") ? "yellow" : "red";
     }
 
     private void drawCover(Canvas c, String rel, float[] xy, RectF frame) {
