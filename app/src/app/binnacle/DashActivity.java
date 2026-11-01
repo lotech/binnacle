@@ -234,12 +234,16 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
         right.setNet(mode);
     }
 
-    /** Network icon tapped: offer the other mode (start CarPlay, or end it and rejoin home Wi-Fi). */
+    /**
+     * Network icon tapped: offer the other mode (start CarPlay, or end it and rejoin home Wi-Fi).
+     * With xcertplay the dash stays on home Wi-Fi, so there is nothing to offer unless ZLink's
+     * hotspot is somehow up (the owner, 1 Nov: no ZLink steps from this icon).
+     */
     @Override public void onNetIcon() {
         final boolean hotspot = apOn;
+        if (!hotspot && Launch.hasXcertplay(this)) return;
         BinnacleDialog.show(this, hotspot ? "On CarPlay's hotspot" : "On home Wi-Fi",
-                hotspot ? "End CarPlay and switch back to home Wi-Fi?"
-                        : Launch.hasXcertplay(this) ? "Start CarPlay?" : "Start CarPlay? The dash leaves home Wi-Fi while CarPlay is on.",
+                hotspot ? "End CarPlay and switch back to home Wi-Fi?" : "Start CarPlay? The dash leaves home Wi-Fi while CarPlay is on.",
                 new String[]{"Cancel", hotspot ? "Switch to Wi-Fi" : "Start CarPlay"}, true, new BinnacleDialog.Choice() {
                     @Override public void chosen(int index) {
                         if (index != 1) return;
