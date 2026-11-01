@@ -1,6 +1,6 @@
 # Binnacle — context for Claude
 
-> **ABSOLUTE RULE — RECEIVE ONLY.** Nothing in this project ever sends anything to the car's CAN bus or the MCU. The dash app only *subscribes* to the stock CAN service and *receives* data. This is enforced in code (one class, two allowed binder calls: subscribe/unsubscribe) and by build-time guards that refuse to build if any write path is referenced: `app/tools/check_readonly.sh` on the source and `app/tools/check_bytecode.sh` on the compiled classes and APK (the logger has its own pair in `capture/tools/`; `app/tools/test_guards.sh` checks that the guards still refuse known bypasses). Never weaken or bypass them.
+> **ABSOLUTE RULE — NOTHING TO THE CAR.** Nothing in this project ever sends anything onto the car's CAN bus or otherwise affects the car itself. The dash app *subscribes* to the stock CAN service and *receives* data; a write to the dash's own MCU is the one narrow exception, only as set out under "MCU writes" below. This is enforced in code (one class, two allowed binder calls: subscribe/unsubscribe) and by build-time guards that refuse to build if any write path is referenced: `app/tools/check_readonly.sh` on the source and `app/tools/check_bytecode.sh` on the compiled classes and APK (the logger has its own pair in `capture/tools/`; `app/tools/test_guards.sh` checks that the guards still refuse known bypasses). Never weaken or bypass them.
 
 A read-only replacement instrument cluster / dashboard app (plus tooling) for the **Carview 10.25" Tesla Model 3/Y Android cluster** (ZIQI "A007" ROM). It shows live car data taken from the stock CAN app and launches CarPlay / Android Auto / the camera, running as an alternative Home app. It never modifies the stock system.
 
@@ -20,15 +20,24 @@ The app only ever **registers and receives**. It must **never** call the write/t
 - never write via `content://com.xbs.can.provider`
 - never use the CarSetUp (`com.xbs.carsetup`) settings that push values to the car. (The dash only READS `Settings.System xbs_carmsgdisppost`, the CarPlay layout, in `StockScreens`; `check_readonly.sh` allows that one read and nothing else. It does not open the car-setup screen, because that screen also holds settings the CAN app forwards to the MCU.)
 
-No bytes ever go to the MCU or the vehicle CAN bus.
+No bytes ever go onto the vehicle CAN bus. MCU writes only as below.
+
+## MCU writes (owner rule, 1 Nov 2026)
+A write to the dash's own MCU is **acceptable but not preferred**: the owner accepts the small risk to make the dash easier to use. Each one is still a deliberate exception:
+- prefer anything that avoids the MCU (an Android setting, an intent, a stock app's own screen);
+- **confirm with the owner before assuming any MCU write**: bring the exact message, what it does, and the evidence it stays on the dash (best: it mirrors what a stock app already sends for the same action), and wait for a go on that specific message;
+- never a message that is, or could be, forwarded onto the CAN bus or changes anything in the car;
+- the guards stay as strict as they are: an approved message is added as one pinned exception (exact call and payload), never a general write path, and `test_guards.sh` gets a case proving any other write is still refused;
+- listed with its undo in `docs/UNIT-CHANGES.md`.
+Approved so far: none.
 
 ## Dash-local writes (owner rule, 31 Oct 2026)
-The absolute line is the car: nothing ever reaches the CAN bus, the MCU or the canapp write side, and the guards above stay as strict as they are. Changes that stay **on the dash itself** (an Android setting, a system property, another app's component or app-op, a file in the app's own storage) are allowed, but only when:
+The absolute line is the car: nothing ever reaches the CAN bus, and the MCU / canapp write side only under "MCU writes" above; the guards stay as strict as they are. Changes that stay **on the dash itself** (an Android setting, a system property, another app's component or app-op, a file in the app's own storage) are allowed, but only when:
 - the owner has approved that specific change;
 - it is pinned in the guards (a fixed `LocalShell` command, or an exact allow-list entry), never built from caller text;
 - it is opt-in for users, says what it does, and can be undone from the app;
 - it is listed with its undo in `docs/UNIT-CHANGES.md`.
-Approved so far: Bluetooth auto-connect (`settings put system xbs_isautoconnect`, via `LocalShell`) and End CarPlay (Wi-Fi off/on, via `LocalShell`). Anything the CAN app forwards to the MCU (backlight mode, speaker level, ambient light, camera type/trigger, night mode) stays off-limits however it is reached.
+Approved so far: Bluetooth auto-connect (`settings put system xbs_isautoconnect`, via `LocalShell`) and End CarPlay (Wi-Fi off/on, via `LocalShell`). Anything the CAN app forwards to the MCU (backlight mode, speaker level, ambient light, camera type/trigger, night mode) is an MCU write: only under "MCU writes" above, never assumed.
 
 ## Must-keep features — never break these
 - **Forward/reverse camera**: separate app `com.xbs.frontcam`, activity `com.xbs.frontcam.CameraActivity` (also responds to intent `com.xbs.action.reqcam`). Auto-shows on Drive via the CAN `frontcamstate` flag — a replacement Home re-does that (watch the flag, launch the camera). Independent of the Home app otherwise.
