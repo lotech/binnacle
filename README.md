@@ -10,7 +10,7 @@ Aimed at fixing some of the jank in the shipped software. We were promised over 
 
 ![The same screen in the dark theme](docs/images/dash-dark.png)
 
-*Parked, light and dark themes. The red "LOGGER RECORDING" badge and eye show because the optional logger is installed and running.*
+*Parked, light and dark themes. The red "● REC" badge and eye show because the optional logger is installed and running.*
 
 ## Why "Binnacle"?
 On a ship, the binnacle is the stand in front of the helm that holds the compass, lit so the helmsman can read it at a glance.
