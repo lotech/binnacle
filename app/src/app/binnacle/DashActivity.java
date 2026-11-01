@@ -238,7 +238,8 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
     @Override public void onNetIcon() {
         final boolean hotspot = apOn;
         BinnacleDialog.show(this, hotspot ? "On CarPlay's hotspot" : "On home Wi-Fi",
-                hotspot ? "End CarPlay and switch back to home Wi-Fi?" : "Start CarPlay? The dash leaves home Wi-Fi while CarPlay is on.",
+                hotspot ? "End CarPlay and switch back to home Wi-Fi?"
+                        : Launch.hasXcertplay(this) ? "Start CarPlay?" : "Start CarPlay? The dash leaves home Wi-Fi while CarPlay is on.",
                 new String[]{"Cancel", hotspot ? "Switch to Wi-Fi" : "Start CarPlay"}, true, new BinnacleDialog.Choice() {
                     @Override public void chosen(int index) {
                         if (index != 1) return;

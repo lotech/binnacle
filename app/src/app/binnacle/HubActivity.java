@@ -333,8 +333,10 @@ public class HubActivity extends Activity {
         PackageManager pm = getPackageManager();
         List<Entry> found = new ArrayList<>();
         boolean stockListed = false;
+        boolean hideZlink = Launch.hasXcertplay(this);   // xcertplay replaces it (the owner, 1 Nov); ZLink stays installed
         for (ResolveInfo ri : pm.queryIntentActivities(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)) {
             String pkg = ri.activityInfo.packageName;
+            if (hideZlink && pkg.equals(Launch.ZLINK_PKG)) continue;
             boolean self = getPackageName().equals(pkg);
             String label = self ? "Binnacle" : pkg.startsWith("app.binnacle.logger") || pkg.equals("com.lotech.tesladash") ? "Logger"
                     : String.valueOf(ri.loadLabel(pm));

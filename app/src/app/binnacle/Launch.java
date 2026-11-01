@@ -10,15 +10,30 @@ import android.widget.Toast;
 final class Launch {
     static final String ZLINK_PKG = "com.zjinnova.zlink";
     static final String ZLINK_ACTION = "zjinnova.android.intent.action.ZLINK_MAIN";
+    /** xcertplay: wireless CarPlay through the unit's own Apple chip and Android Bluetooth. */
+    static final ComponentName XCERTPLAY = new ComponentName("com.shilapi.xcertplay", "com.shilapi.xcertplay.CarPlayHostActivity");
     static final ComponentName CAMERA = new ComponentName("com.xbs.frontcam", "com.xbs.frontcam.CameraActivity");
     static final ComponentName STOCK_DASH = new ComponentName("com.xbs.launcher1", "com.xbs.launcher1.MainActivity");
 
     private Launch() {}
 
-    /** ZLink handles both CarPlay and Android Auto. */
+    /**
+     * CarPlay: xcertplay when it is installed (the owner's choice, 1 Nov: it matches ZLink and keeps
+     * the dash on home Wi-Fi), otherwise the stock ZLink, which also does Android Auto.
+     */
     static void phone(Context c) {
+        if (hasXcertplay(c) && start(c, new Intent().setComponent(XCERTPLAY), false)) return;
         Intent i = new Intent(ZLINK_ACTION).setPackage(ZLINK_PKG);
         if (!start(c, i, false)) start(c, c.getPackageManager().getLaunchIntentForPackage(ZLINK_PKG), true);
+    }
+
+    static boolean hasXcertplay(Context c) {
+        try {
+            c.getPackageManager().getActivityInfo(XCERTPLAY, 0);
+            return true;
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return false;
+        }
     }
 
     static void camera(Context c) {

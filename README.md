@@ -68,7 +68,7 @@ Sold as an "Android 12" 10.25" cluster for the Model 3 and Model Y under several
 | **Car data** | Two MCUs: one decodes the Tesla CAN bus and sends it over a serial port to the stock CAN app (`com.xbs.canapp`), which any app can subscribe to. Brake lights, true range and steering angle aren't in that feed, and on some cars the battery level is stuck (see above). |
 | **Wi-Fi** | One radio. Wireless CarPlay turns it into a hotspot, so the unit drops off your home Wi-Fi (and ADB) while CarPlay is connected. |
 | **Bluetooth** | A separate Goodocom module handles calls and audio. Android's own Bluetooth is off by default, so there's no Bluetooth LE and apps that need it (such as S3XY Commander) can't connect. |
-| **CarPlay / Android Auto** | ZLink, preinstalled. The unit rolls ZLink back to its preinstalled version at every boot, so in-app updates don't stick. |
+| **CarPlay / Android Auto** | ZLink, preinstalled. The unit rolls ZLink back to its preinstalled version at every boot, so in-app updates don't stick. If [xcertplay](https://github.com/shilapi/xcertplay) is installed, Binnacle opens it for CarPlay instead and hides ZLink from its app list (ZLink stays installed). |
 | **Camera** | A TP9950 decoder. Only the TVI 1080p 30 fps input format gives a clean picture with the supplied camera. |
 | **GPS** | Built in. Its daemon crashes often and, as shipped, writes a large crash dump to storage each time. |
 | **USB-C** | Host only: you can't use it for ADB. ADB works over Wi-Fi (see `docs/ADB-GUIDE.md`), and once on, it accepts connections from anything on your network without a key. |

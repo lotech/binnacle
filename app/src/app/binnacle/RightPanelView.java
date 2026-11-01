@@ -16,7 +16,7 @@ import java.util.Locale;
 
 /**
  * Right panel: outside temp, battery % with estimated range, tyre pressures, odometer
- * and the app dock (CarPlay via ZLink, camera, apps). Drawn in 340x720 design pixels (mockup's .side.r).
+ * and the app dock (CarPlay via xcertplay or ZLink, camera, apps). Drawn in 340x720 design pixels (mockup's .side.r).
  * The dock is navigable with the steering wheel via {@link #setFocusIndex}.
  */
 public class RightPanelView extends View {
