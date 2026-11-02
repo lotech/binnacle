@@ -86,6 +86,8 @@ public class CentreView extends View {
     private static final float AP_FADE_S = 0.4f;
     private static final int AP_LINE = 0xff7fd4ff;
     private final Paint apPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    /** Autopilot lane blue: deeper than the UI accent so it holds its own next to the rainbow. */
+    private static final int AP_BLUE = 0xff1f86ff;
     private static final float RAINBOW_FAR = 45f, RAINBOW_STEP = 0.75f, RAINBOW_MIN_CYCLE_PX = 16f, RAINBOW_SAT = 0.75f;
     /** Soft lane edges: FEATHER nested passes, the innermost inset EDGE of the lane width each side. */
     private static final int FEATHER = 12;
@@ -233,8 +235,14 @@ public class CentreView extends View {
     private final Paint needle = Style.fill(Style.FG);
 
     private void drawFollowDistance(Canvas c) {
-        float cx = box.right - 96, cy = box.bottom - 58;   // above the odometer line
-        r.set(cx - 26, cy - 42, cx + 52, cy + 26);
+        // right-aligned with the odometer backing, with a clear gap above it (in-car, 2 Nov: it touched)
+        float right = box.right - 8, bottom = box.bottom - 12;
+        if (car.odometer >= 0) {
+            Style.size(odoText, Style.T_SMALL);
+            bottom = box.bottom - 12 + odoText.ascent() - 4 - 8;   // the odometer backing's top, less a gap
+        }
+        float cx = right - 52, cy = bottom - 26;
+        r.set(cx - 26, cy - 42, right, bottom);
         c.drawRoundRect(r, 14, 14, badgeBg);                  // backing for contrast over the road (light theme)
         distStroke.setColor(Style.ACCENT);
         distText.setColor(Style.ACCENT);
@@ -520,7 +528,8 @@ public class CentreView extends View {
         float bottom = top + rh, tFar;
         if (!app.rainbowRoad()) {
             if (apShader == null || apShaderTop != top || apShaderH != rh) {
-                apShader = new LinearGradient(0, top, 0, bottom, 0x0036b9ff, 0xff36b9ff, Shader.TileMode.CLAMP);
+                // a deeper blue that still shows toward the horizon, as strong as the rainbow (in-car, 2 Nov: too pale)
+                apShader = new LinearGradient(0, top, 0, bottom, AP_BLUE & 0x00ffffff | 0x59000000, AP_BLUE, Shader.TileMode.CLAMP);
                 apShaderTop = top;
                 apShaderH = rh;
             }
@@ -531,7 +540,7 @@ public class CentreView extends View {
             tFar = NEAR / FAR;      // the shader clamps its farthest colour up to the horizon fade
         }
         // per-pass alpha so FEATHER overlapping passes add up to the target opacity in the middle
-        float target = (app.rainbowRoad() ? 0.75f : 0.6f) * apBlend;
+        float target = 0.75f * apBlend;
         int pass = Math.round(255 * (1f - (float) Math.pow(1f - target, 1.0 / FEATHER)));
         apPaint.setAlpha(pass);
         for (int i = 0; i < FEATHER; i++) {
