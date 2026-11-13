@@ -1271,6 +1271,9 @@ public class HubActivity extends Activity {
             @Override public void onClick(View v) {
                 b.setEnabled(false);
                 b.setText("Working…");
+                // xcertplay stops first: Wi-Fi off and on alone looks like a dropped link, and it
+                // reconnected at once (owner, 13 Nov)
+                if (cmd == LocalShell.Command.END_CARPLAY) DashApp.get(HubActivity.this).endCarPlaySession();
                 new Thread(new Runnable() {
                     @Override public void run() {
                         String result;

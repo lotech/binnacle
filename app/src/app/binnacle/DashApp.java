@@ -188,6 +188,26 @@ public class DashApp extends Application implements Feed.Sink, SharedPreferences
         }
     }
 
+    /** Set by the dash while it is up: ends Binnacle's CarPlay session and keeps it ended. */
+    private Runnable carPlayEnder;
+
+    void setCarPlayEnder(Runnable ender) { carPlayEnder = ender; }
+
+    /** Clears it only if it is still this one (a recreated dash may have set its own already). */
+    void clearCarPlayEnder(Runnable ender) { if (carPlayEnder == ender) carPlayEnder = null; }
+
+    /**
+     * End CarPlay from anywhere (Settings' End CarPlay card): tells xcertplay to stop and stay
+     * stopped and closes the dash's CarPlay window, before the caller cycles Wi-Fi. Wi-Fi off and
+     * on alone looked like a dropped connection, so xcertplay reconnected by itself, and the dash
+     * restarted it when its CarPlay window came back (owner, 13 Nov). Main thread only. With
+     * ZLink (no xcertplay link) there is nothing to tell: Wi-Fi off and on is all it gets.
+     */
+    void endCarPlaySession() {
+        Runnable r = carPlayEnder;
+        if (r != null) r.run();
+    }
+
     /** onCarChanged code: a car-picture pack finished downloading (or failed); screens showing it refresh. */
     public static final int PACKS_CHANGED = -4;
 

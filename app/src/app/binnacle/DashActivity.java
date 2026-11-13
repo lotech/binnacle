@@ -11,6 +11,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
@@ -136,6 +137,7 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
         setContentView(root);
         // no storage permission: the car renders are bundled (or in this app's own files dir)
         carplayLink.bind();     // false when xcertplay is missing or signed differently: its own screen then
+        app.setCarPlayEnder(endCarPlay);   // Settings' End CarPlay card ends the session through this
         IntentFilter screen = new IntentFilter(Intent.ACTION_SCREEN_OFF);
         screen.addAction(Intent.ACTION_SCREEN_ON);
         registerReceiver(screenOff, screen);
@@ -168,12 +170,35 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
         try { unregisterReceiver(screenOff); } catch (RuntimeException ignored) { }
         // closed for good (not recreated): nothing will hear CarPlay end, so scanning goes back on now
         if (!isChangingConfigurations()) WifiScans.forCarPlay(app.prefs(), false);
+        app.clearCarPlayEnder(endCarPlay);
         carplay.release();      // xcertplay lets go of the surface while we are still bound
         carplayLink.unbind();   // the CarPlay session itself keeps running in xcertplay
         super.onDestroy();
     }
 
     // ---- CarPlay in the dash ----
+
+    /**
+     * End CarPlay, before Wi-Fi is cycled: xcertplay stops and stays stopped until CarPlay is
+     * started again (the CarPlay button, its own screen, auto-connect at the next wake), and the
+     * window closes so returning to the dash doesn't ask for a new session. Wi-Fi off and on
+     * alone left xcertplay retrying the lost connection (owner, 13 Nov: it reconnected right after
+     * End CarPlay).
+     */
+    private final Runnable endCarPlay = new Runnable() {
+        @Override public void run() {
+            carplayAuto.onScreenOff();   // ends a background auto-connect attempt, as at car sleep
+            restoreCarplayMode = CARPLAY_OFF;   // a dash recreated meanwhile must not reopen it
+            if (carplayMode != CARPLAY_OFF) showCarPlay(CARPLAY_OFF);
+            if (carplayLink.connected()) { carplayLink.disconnect(); endWhenLinkedUntil = 0; }
+            // link not up yet (dash just recreated): sent as soon as it is, unless that is long after
+            else endWhenLinkedUntil = SystemClock.uptimeMillis() + END_WHEN_LINKED_MS;
+        }
+    };
+
+    /** End CarPlay tapped while the link was down: disconnect when it comes up before this (uptime ms). */
+    private long endWhenLinkedUntil;
+    private static final long END_WHEN_LINKED_MS = 30_000;
 
     private final CarPlayLink.Listener carplayListener = new CarPlayLink.Listener() {
         @Override public void onLinkChanged(boolean connected) {
@@ -185,12 +210,16 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
             if (connected) {
                 declaredSizes = null;
                 noteCarPlaySizes();     // before the surface goes over, so the session starts knowing both
+                boolean ended = endWhenLinkedUntil != 0 && SystemClock.uptimeMillis() < endWhenLinkedUntil;
+                endWhenLinkedUntil = 0;
+                if (ended) carplayLink.disconnect();
                 if (carplayMode == CARPLAY_OFF && restoreCarplayMode != CARPLAY_OFF) showCarPlay(restoreCarplayMode);
                 restoreCarplayMode = CARPLAY_OFF;
                 // a pane already on screen tried to hand over its surface before the link was up
                 // (after a restart its surface already exists, so nothing else would resend it)
                 if (carplayMode != CARPLAY_OFF) carplay.requestAttach();   // also asks for CarPlay
                 carplayAuto.onLinkUp();         // the first link since the dash started counts as a start
+                if (ended) carplayAuto.onScreenOff();   // and no "dash start" auto-connect after End CarPlay
             } else if (carplayMode != CARPLAY_OFF) {
                 showCarPlay(CARPLAY_OFF);       // xcertplay went away; the dock opens its own screen now
             }
@@ -569,8 +598,7 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
                         new String[]{"Cancel", "End CarPlay"}, true, new BinnacleDialog.Choice() {
                             @Override public void chosen(int index) {
                                 if (index != 1) return;
-                                carplayLink.disconnect();                  // xcertplay stops and stays stopped
-                                showCarPlay(CARPLAY_OFF);
+                                endCarPlay.run();                          // xcertplay stops and stays stopped
                                 WifiScans.rejoin(DashActivity.this, app.prefs(), false, netNote);
                             }
                         });
@@ -587,6 +615,7 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
                     @Override public void chosen(int index) {
                         if (index != 1) return;
                         if (!hotspot) { Launch.phone(DashActivity.this); return; }
+                        endCarPlay.run();      // or xcertplay reconnects once Wi-Fi is back
                         new Thread(new Runnable() {
                             @Override public void run() {
                                 String msg;
