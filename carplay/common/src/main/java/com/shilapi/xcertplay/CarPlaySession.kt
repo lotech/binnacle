@@ -803,6 +803,7 @@ internal object CarPlaySession {
                     airPlayConfig.cluster?.let { put(SCREEN_TYPE_ALT, it.widthPixels to it.heightPixels) }
                 },
                 preferSoftwareHevcDecoder = settings.hevcSoftwareDecoderEnabled,
+                videoColourConversion = settings.videoColourConversion,
                 advancedAudioChannelMapping = settings.advancedAudioChannelMapping,
                 mainMediaAudioBufferDurationMs = settings.mainMediaAudioBufferDurationMs,
                 microphoneGainPercent = settings.microphoneGainPercent,

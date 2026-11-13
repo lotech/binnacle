@@ -48,6 +48,8 @@ class AndroidMediaSink(
     private val videoWidth: Int = 1280,
     private val videoHeight: Int = 720,
     private val preferSoftwareHevcDecoder: Boolean = false,
+    /** Convert video colours in this app's own shader where the GPU allows (see [VideoColourRenderer]). */
+    private val videoColourConversion: Boolean = true,
     private val advancedAudioChannelMapping: Boolean = false,
     private val mainMediaAudioBufferDurationMs: Int = MainMediaAudioBuffer.DEFAULT_DURATION_MS,
     private val microphoneGainPercent: Int = MicrophoneGain.DEFAULT_PERCENT,
@@ -218,6 +220,7 @@ class AndroidMediaSink(
                 videoSizes[type]?.first ?: videoWidth,
                 videoSizes[type]?.second ?: videoHeight,
                 preferSoftwareHevcDecoder,
+                videoColourConversion,
                 mediaMetricsMonitor,
                 requestKeyFrame = { videoRecoveryHandlers[type]?.invoke() ?: false },
                 midStream = midStream,
@@ -345,6 +348,7 @@ private class VideoDecoder(
     private val width: Int,
     private val height: Int,
     private val preferSoftwareHevcDecoder: Boolean,
+    private val colourConversion: Boolean,
     mediaMetricsMonitor: MediaMetricsMonitor?,
     private val requestKeyFrame: () -> Boolean,
     /** Joining a running stream: the next random access picture may be a GOP away, or never on a static screen. */
@@ -383,6 +387,11 @@ private class VideoDecoder(
     private var duplicateConfigLogged = false
     private var awaitingConfigLogged = false
     @Volatile private var mediaMetricsMonitor = mediaMetricsMonitor
+    /** Converts and draws the codec's pictures when the GPU allows; the codec renders into it. */
+    private var colour: VideoColourRenderer? = null
+    private var colourFailed = false
+    /** The running codec renders into [colour] rather than straight to [outputSurface]. */
+    private var codecOnColour = false
     private val thread = Thread(::run, "carplay-video").apply { isDaemon = true; start() }
 
     fun configure(codec: VideoCodec, codecData: ByteArray) {
@@ -483,6 +492,7 @@ private class VideoDecoder(
             heldFrame?.accessUnit?.close()
             heldFrame = null
             releaseDecoder()
+            closeColour()
             releaseOffscreen()
             detached?.countDown()
         }
@@ -552,18 +562,20 @@ private class VideoDecoder(
             setInteger(MediaFormat.KEY_PRIORITY, 0)
         }
         val next = createDecoder(mime)
+        val target = colourTarget(surface, parameters)
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
                 next.codecInfo.getCapabilitiesForType(mime)
                     .isFeatureSupported(MediaCodecInfo.CodecCapabilities.FEATURE_LowLatency)
             ) format.setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
-            next.configure(format, surface, null, 0)
+            next.configure(format, target, null, 0)
             next.start()
         } catch (error: Exception) {
             next.release()
             throw error
         }
         decoder = next
+        codecOnColour = target !== surface
         syncGate = VideoSyncGate(codec)
         pump = VideoDecodePump(object : VideoDecodePump.Port {
             override fun drain() = drainOutput(next)
@@ -587,7 +599,11 @@ private class VideoDecoder(
         Log.i(TAG, "video SPS parameters=$parameters negotiated=${width}x$height inputFormat=$format")
         renderedFrameLogged = false
         submittedFrameLogged = false
-        Log.i(TAG, "video decoder configured name=${next.name} mime=$mime; waiting for random access")
+        Log.i(
+            TAG,
+            "video decoder configured name=${next.name} mime=$mime " +
+                "colour=${if (codecOnColour) "converted" else "direct"}; waiting for random access",
+        )
     }
 
     private fun createDecoder(mime: String): MediaCodec {
@@ -609,10 +625,61 @@ private class VideoDecoder(
         return MediaCodec.createDecoderByType(mime)
     }
 
+    /**
+     * The Surface the codec should render into: the colour renderer's, drawing to [surface], when
+     * conversion is on and works; otherwise [surface] itself.
+     */
+    private fun colourTarget(surface: Surface, parameters: VideoParameters): Surface {
+        if (!colourConversion || colourFailed) return surface
+        val renderer = colour ?: VideoColourRenderer.create()?.also { colour = it }
+        if (renderer == null) {
+            colourFailed = true
+            return surface
+        }
+        renderer.setColour(parameters.width, parameters.height, parameters.colorStandard, parameters.colorRange)
+        if (renderer.setOutput(surface, redrawLast = false)) return renderer.inputSurface
+        Log.w(TAG, "video colour renderer can't draw to the surface; rendering straight to it")
+        colourFailed = true
+        closeColour()
+        return surface
+    }
+
+    private fun closeColour() {
+        colour?.close()
+        colour = null
+        codecOnColour = false
+    }
+
     private fun changeSurface(surface: Surface?) {
         if (outputSurface === surface) return
+        val wasParked = parked
         outputSurface = surface
         parked = false
+        val renderer = colour
+        if (decoder != null && codecOnColour && renderer != null) {
+            // The codec keeps rendering into the renderer; only where it draws changes. Without a
+            // screen it consumes and drops pictures, like the offscreen park below.
+            if (renderer.setOutput(surface, redrawLast = !wasParked)) {
+                if (surface == null) {
+                    parked = true
+                    Log.i(TAG, "video decoder parked on the colour renderer")
+                } else {
+                    Log.i(TAG, "video colour renderer output surface updated")
+                    // A parked renderer's last picture is stale; ask for a fresh one either way.
+                    needsKeyFrame = true
+                }
+                return
+            }
+            Log.w(TAG, "video colour renderer can't draw to the new surface; rendering straight to it")
+            colourFailed = true
+            releaseDecoder()
+            closeColour()
+            lastConfig?.let(::configureDecoder)
+            return
+        }
+        // No codec drawing through the renderer: let go of the old Surface (it may be going away);
+        // the next configure attaches the renderer again.
+        renderer?.setOutput(null, redrawLast = false)
         if (surface == null) {
             // Keep decoding into a hidden surface while the screen is away (another app in front):
             // a restarted decoder needs a new random-access picture, and during a call the phone
@@ -800,6 +867,7 @@ private class VideoDecoder(
         pump = null
         syncGate = null
         inFlight = 0
+        codecOnColour = false
         if (codec != null) {
             needsKeyFrame = true
             try {

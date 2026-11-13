@@ -13,8 +13,8 @@ android {
         applicationId = "com.shilapi.xcertplay"
         minSdk = 28
         targetSdk = 37
-        versionCode = 1407
-        versionName = "1.4.5"
+        versionCode = 1408
+        versionName = "1.4.6"
         testInstrumentationRunner = "com.shilapi.xcertplay.CarPlayMediaServiceLifecycleTest"
     }
 

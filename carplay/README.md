@@ -105,6 +105,10 @@
 > - Wireless CarPlay doesn't start when the hotspot's interface can't be found (it would otherwise
 >   answer on every network), the hotspot passphrase is never written to the logs, and the
 >   decrypted control-traffic trace goes to the session log only with "Debug logs" on
+> - Video colours converted in the app's own shader (GL_EXT_YUV_target) using the range and
+>   matrix the phone's stream declares, for GPUs that treat every decoded picture as BT.601 TV
+>   range (light-mode whites and pastels clipped); falls back to direct rendering without the
+>   extension, or with the `video_colour_conversion` preference set to false
 
 ## Features
 
