@@ -561,8 +561,10 @@ private class VideoDecoder(
             if (parameters.colorTransfer != -1) setInteger(MediaFormat.KEY_COLOR_TRANSFER, parameters.colorTransfer)
             setInteger(MediaFormat.KEY_PRIORITY, 0)
         }
-        val next = createDecoder(mime)
+        // Resolve the colour target first: it can block (and be interrupted) while the renderer
+        // starts, and no codec has been allocated yet to leak.
         val target = colourTarget(surface, parameters)
+        val next = createDecoder(mime)
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
                 next.codecInfo.getCapabilitiesForType(mime)
