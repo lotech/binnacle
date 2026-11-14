@@ -359,7 +359,16 @@ internal class VideoColourRenderer private constructor(
                 if (!ok) renderer.release()
                 done.countDown()
             }
-            if (!done.await(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS) || !ok) {
+            val finished = try {
+                done.await(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            } catch (interrupted: InterruptedException) {
+                // The session closed mid-init: nothing owns the renderer yet, so release it here
+                // (after the init, on the GL thread) and let the thread end, then pass it on.
+                handler.post { if (ok) renderer.release() }
+                thread.quitSafely()
+                throw interrupted
+            }
+            if (!finished || !ok) {
                 Log.i(TAG, "video colour conversion off: rendering straight to the surface")
                 unavailable = true
                 // A late init that still succeeds must not leave its EGL context behind (a failed
