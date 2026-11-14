@@ -42,6 +42,8 @@ internal data class CarPlaySessionSettings(
     val displayScaleTenths: Int,
     val hevcEnabled: Boolean,
     val hevcSoftwareDecoderEnabled: Boolean,
+    /** Video colours converted in CarPlay's own shader where the GPU allows (AndroidMediaSink). */
+    val videoColourConversion: Boolean = true,
     val advancedAudioChannelMapping: Boolean,
     val audioFocusEnabled: Boolean,
     val audioQuality: AudioQualitySettings,
@@ -239,6 +241,7 @@ internal data class CarPlaySessionSettings(
                 hevcSoftwareDecoderEnabled =
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
                         AirPlayPersistence.loadHevcSoftwareDecoderEnabled(context),
+                videoColourConversion = AirPlayPersistence.loadVideoColourConversionEnabled(context),
                 advancedAudioChannelMapping =
                     context.resources.getBoolean(R.bool.config_advanced_audio_channel_mapping) &&
                         AirPlayPersistence.loadAdvancedAudioChannelMapping(context),
