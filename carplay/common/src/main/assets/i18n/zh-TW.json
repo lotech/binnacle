@@ -137,7 +137,7 @@
   "settings.vehicle.precise_positioning.support": "同時傳送真實的定位品質、使用衛星數與海拔高度；Android 無法提供的值維持原樣",
   "settings.vehicle.navigation": "導航",
   "settings.vehicle.route_guidance": "接收路線導引（測試）",
-  "settings.vehicle.route_guidance.support": "將 iPhone 的路線記錄到日誌。若 CarPlay 無法連線，請關閉",
+  "settings.vehicle.route_guidance.support": "將 iPhone 的路線分享給儀表板。若 CarPlay 無法連線，請關閉",
   "settings.vehicle.properties": "車輛屬性",
   "settings.vehicle.source": "屬性來源",
   "settings.vehicle.source.aaos": "標準 Android Automotive",

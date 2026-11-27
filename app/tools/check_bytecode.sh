@@ -136,7 +136,7 @@ if [ -n "$LINK_CLASS" ]; then
         || bad "CarPlayLink.binderCall changed: review it, then update this guard (got: $ops)"
     printf '%s\n' "$bc" | grep -qE '^ +6: bipush +10$' || bad "CarPlayLink.binderCall must refuse codes above 10"
     # its strings: the one service it binds, the interface token, log text and the keys of the
-    # state / layout / now-playing messages it receives, nothing else
+    # state / layout / now-playing / route messages it receives, nothing else
     got=$(refs '^String:' | awk -F'\t' '$1 ~ /^app\/binnacle\/CarPlayLink(\$|$)/ { print $4 }' | sort -u)
     expected=$(sort -u <<'EOF'
 String: failed:
@@ -158,6 +158,7 @@ String:art
 String:artId
 String:artist
 String:controls
+String:distance
 String:duration
 String:playing
 String:position

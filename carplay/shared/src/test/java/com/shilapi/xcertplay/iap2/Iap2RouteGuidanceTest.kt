@@ -2,6 +2,8 @@ package com.shilapi.xcertplay.iap2
 
 import com.shilapi.xcertplay.iap2.message.Iap2ControlMessages
 import com.shilapi.xcertplay.iap2.message.Iap2Messages
+import com.shilapi.xcertplay.iap2.message.Iap2Route
+import com.shilapi.xcertplay.iap2.message.Iap2RouteAccumulator
 import com.shilapi.xcertplay.iap2.message.Iap2RouteGuidance
 import com.shilapi.xcertplay.iap2.wire.Iap2Frame
 import com.shilapi.xcertplay.iap2.wire.Iap2ParameterList
@@ -97,6 +99,47 @@ class Iap2RouteGuidanceTest {
             "iap2 route-guidance undecodable (3 bytes): 000901",
             Iap2RouteGuidance.describe(Iap2Frame(0x5201, byteArrayOf(0, 9, 1))),
         )
+    }
+
+    @Test
+    fun accumulatesTheRouteAppleMapsSent() {
+        val routes = Iap2RouteAccumulator()
+        // the 27 Nov car test: "proceed to route", 4,259 m, 660 s, ETA, destination
+        val update = Iap2Messages.buildRaw(0x5201) {
+            u16(0, 6)
+            u8(1, 6)
+            string(4, "JB Hi-Fi")
+            u64(5, 1_795_822_440L)
+            u64(6, 660)
+            u32(7, 4_259L)
+            string(8, "4.3")
+            u8(9, 0)
+        }
+        val expected = Iap2Route(4_259, 660, 1_795_822_440L, "JB Hi-Fi")
+        assertEquals(expected, routes.update(update))
+        // a later frame without the destination keeps it; a new distance replaces the old one
+        assertEquals(
+            expected.copy(distanceMetres = 4_000),
+            routes.update(Iap2Messages.buildRaw(0x5201) { u32(7, 4_000L) }),
+        )
+        // stopping the route (state 0) clears it, and so does arriving (2)
+        assertNull(routes.update(Iap2Messages.buildRaw(0x5201) { u8(1, 0) }))
+        assertNull(routes.update(Iap2Messages.buildRaw(0x5201) { u8(1, 1) }))   // no distance yet
+        assertEquals(Iap2Route(900), routes.update(Iap2Messages.buildRaw(0x5201) { u32(7, 900L) }))
+        assertNull(routes.update(Iap2Messages.buildRaw(0x5201) { u8(1, 2) }))
+    }
+
+    @Test
+    fun aRouteNeedsAnActiveStateAndSurvivesBadFrames() {
+        val routes = Iap2RouteAccumulator()
+        assertNull(routes.update(Iap2Messages.buildRaw(0x5201) { u8(1, 3); u32(7, 500L) }))   // loading
+        assertEquals(Iap2Route(500), routes.update(Iap2Messages.buildRaw(0x5201) { u8(1, 5) }))   // rerouting
+        assertEquals(Iap2Route(500), routes.update(Iap2Frame(0x5201, byteArrayOf(0, 9, 1))))
+        assertEquals(Iap2Route(500), routes.update(Iap2Messages.buildRaw(0x5202) { u8(1, 0) }))
+        // an empty destination is no destination, and the distance after it still counts
+        assertEquals(Iap2Route(400), routes.update(Iap2Messages.buildRaw(0x5201) { raw(4, ByteArray(0)); u32(7, 400L) }))
+        routes.reset()
+        assertNull(routes.update(Iap2Messages.buildRaw(0x5201) { u32(7, 500L) }))
     }
 
     private fun parameters(frame: Iap2Frame) = Iap2ParameterList.parse(frame.payload).asList()

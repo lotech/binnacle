@@ -33,11 +33,13 @@ import com.shilapi.xcertplay.airplay.PairingStore
 import com.shilapi.xcertplay.iap2.message.Iap2HidMessages
 import com.shilapi.xcertplay.iap2.message.Iap2MediaRemoteCommand
 import com.shilapi.xcertplay.iap2.message.Iap2NowPlayingAccumulator
+import com.shilapi.xcertplay.iap2.message.Iap2RouteAccumulator
 import com.shilapi.xcertplay.iap2.message.Iap2RouteGuidance
 import com.shilapi.xcertplay.iap2.session.Iap2FileTransferReceiver
 import com.shilapi.xcertplay.iap2.session.Iap2Session
 import com.shilapi.xcertplay.iap2.wire.Iap2Frame
 import com.shilapi.xcertplay.media.CarPlayMediaSessionBridge
+import com.shilapi.xcertplay.media.CarPlayRouteFeed
 import com.shilapi.xcertplay.iap2.message.Iap2Messages
 import com.shilapi.xcertplay.mfi.Iap2MfiAuthenticationClient
 import com.shilapi.xcertplay.mfi.LocalMfiAuthenticationClient
@@ -280,6 +282,8 @@ class CarPlayController(
     private val nowPlaying = Iap2NowPlayingAccumulator()
     /** The last route guidance log line per message ID (issue #180 test), cleared per iAP2 session. */
     private val lastRouteGuidanceLines = ConcurrentHashMap<Int, String>()
+    /** The route the iPhone is guiding to, for CarPlayRouteFeed. */
+    private val route = Iap2RouteAccumulator()
 
     private var permissionCloseable: Closeable? = null
     private var attachCloseable: Closeable? = null
@@ -520,14 +524,21 @@ class CarPlayController(
         if (frame.messageId == Iap2RouteGuidance.ROUTE_GUIDANCE_UPDATE ||
             frame.messageId == Iap2RouteGuidance.MANEUVER_UPDATE
         ) {
-            // Test build for issue #180: log only, nothing reaches the dash yet. A line is logged
-            // only when it differs from the last one for that message, so a steady route
-            // doesn't flood the log.
+            // Issue #180: the route goes to a host app (CarPlayRouteFeed), and each frame is
+            // logged, only when its line differs from the last one for that message, so a steady
+            // route doesn't flood the log.
             try {
-                val line = Iap2RouteGuidance.describe(frame) ?: return
-                if (lastRouteGuidanceLines.put(frame.messageId, line) != line) debugLog(line)
+                val line = Iap2RouteGuidance.describe(frame)
+                if (line != null && lastRouteGuidanceLines.put(frame.messageId, line) != line) debugLog(line)
             } catch (error: RuntimeException) {
                 debugLog("Could not decode iAP2 route guidance", error)
+            }
+            if (frame.messageId == Iap2RouteGuidance.ROUTE_GUIDANCE_UPDATE) {
+                try {
+                    CarPlayRouteFeed.publish(route.update(frame))
+                } catch (error: RuntimeException) {
+                    debugLog("Could not read the iAP2 route", error)
+                }
             }
             return
         }
@@ -541,6 +552,9 @@ class CarPlayController(
 
     private fun activateMediaRemote(session: Iap2Session) {
         lastRouteGuidanceLines.clear()
+        // a new session starts with no route: nothing carries over from one that hasn't stopped yet
+        route.reset()
+        CarPlayRouteFeed.publish(null)
         startFileTransferReceiver(session)
         activeMediaRemoteSession = session
         CarPlayMediaSessionBridge.setControlsAvailable(this, true)
@@ -551,6 +565,9 @@ class CarPlayController(
         if (activeMediaRemoteSession !== session) return
         activeMediaRemoteSession = null
         CarPlayMediaSessionBridge.setControlsAvailable(this, false)
+        // the session that carried the route has ended: no route until the next one sends it
+        route.reset()
+        CarPlayRouteFeed.publish(null)
     }
 
     private fun startFileTransferReceiver(session: Iap2Session) {
@@ -636,6 +653,8 @@ class CarPlayController(
         permissionPollGeneration += 1
         activeMediaRemoteSession = null
         CarPlayMediaSessionBridge.detach(appContext, this)
+        route.reset()
+        CarPlayRouteFeed.publish(null)
         touchExecutor.shutdownNow()
         tunnelExecutor.shutdownNow()
         val service = vpnService

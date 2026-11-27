@@ -137,7 +137,7 @@
   "settings.vehicle.precise_positioning.support": "Также отправляет реальное качество фиксации, число используемых спутников и высоту над уровнем моря; значения, которые Android не может дать, остаются прежними",
   "settings.vehicle.navigation": "Навигация",
   "settings.vehicle.route_guidance": "Получать маршрут (тест)",
-  "settings.vehicle.route_guidance.support": "Записывает маршрут iPhone в журнал. Выключите, если CarPlay не подключается",
+  "settings.vehicle.route_guidance.support": "Передаёт маршрут iPhone на приборную панель. Выключите, если CarPlay не подключается",
   "settings.vehicle.properties": "Свойства автомобиля",
   "settings.vehicle.source": "Источник свойств",
   "settings.vehicle.source.aaos": "Стандартный Android Automotive",

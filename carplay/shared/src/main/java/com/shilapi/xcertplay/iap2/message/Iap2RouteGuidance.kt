@@ -77,14 +77,14 @@ object Iap2RouteGuidance {
         if (value in 0 until names.size) "$value(${names[value.toInt()]})" else value.toString()
 
     /** Unsigned big-endian for 1, 2, 4 or 8 bytes (an 8-byte value is shown as signed). */
-    private fun number(bytes: ByteArray): Long? {
+    internal fun number(bytes: ByteArray): Long? {
         if (bytes.size !in setOf(1, 2, 4, 8)) return null
         return bytes.fold(0L) { acc, byte -> (acc shl 8) or (byte.toLong() and 0xff) }
     }
 
     /** NUL-terminated UTF-8 with no other control characters, or null. */
-    private fun text(bytes: ByteArray): String? {
-        if (bytes.last() != 0.toByte()) return null
+    internal fun text(bytes: ByteArray): String? {
+        if (bytes.isEmpty() || bytes.last() != 0.toByte()) return null
         val decoded = bytes.copyOf(bytes.size - 1).decodeToString()
         if (decoded.any { it.isISOControl() || it == '�' }) return null
         return if (decoded.length > MAX_TEXT_CHARS) decoded.take(MAX_TEXT_CHARS) + "…" else decoded
@@ -111,8 +111,8 @@ object Iap2RouteGuidance {
         3 to Field("road", Kind.TEXT),
         4 to Field("destination", Kind.TEXT),
         5 to Field("eta", Kind.EPOCH),
-        // Named TimeRemainingToDestination in some notes, ETA time-zone offset in others.
-        6 to Field("p6", Kind.NUMBER),
+        // Seconds left (660 with an ETA 11 minutes away, Apple Maps 27 Nov).
+        6 to Field("timeRemaining", Kind.NUMBER),
         7 to Field("distanceRemaining", Kind.METRES),
         8 to Field("distanceRemainingText", Kind.TEXT),
         9 to Field("distanceRemainingUnits", Kind.UNITS),
@@ -142,4 +142,83 @@ object Iap2RouteGuidance {
         10 to Field("junctionAngle", Kind.NUMBER),
         11 to Field("exitAngle", Kind.NUMBER),
     )
+}
+
+/**
+ * The route the iPhone is guiding to, for the dash (issue #180): [distanceMetres] left, and when
+ * the iPhone sends them the time left, the ETA (seconds since 1970) and the destination's name.
+ */
+data class Iap2Route(
+    val distanceMetres: Long,
+    val timeRemainingSeconds: Long? = null,
+    val etaEpochSeconds: Long? = null,
+    val destination: String? = null,
+)
+
+/**
+ * Keeps the latest route from RouteGuidanceUpdate (0x5201) frames. Fields the iPhone leaves out
+ * keep their last value; "no route" (0) and "arrived" (2) clear it. A route counts as active in the
+ * states route set (1), rerouting (5) and proceed to route (6), once a distance has arrived.
+ * Checked against Apple Maps on 27 Nov 2026: p1 state, p4 destination, p5 ETA, p6 time left (s),
+ * p7 distance left (m).
+ */
+class Iap2RouteAccumulator {
+    private var state: Long? = null
+    private var distance: Long? = null
+    private var remaining: Long? = null
+    private var eta: Long? = null
+    private var destination: String? = null
+
+    /** The route after [frame], or null when none is active. Malformed frames change nothing. */
+    @Synchronized
+    fun update(frame: Iap2Frame): Iap2Route? {
+        if (frame.messageId != Iap2RouteGuidance.ROUTE_GUIDANCE_UPDATE) return current()
+        val parameters = try {
+            Iap2ParameterList.parse(frame.payload).asList()
+        } catch (_: Iap2ProtocolException) {
+            return current()
+        }
+        parameters.forEach { parameter ->
+            val bytes = parameter.payload
+            when (parameter.id) {
+                STATE -> Iap2RouteGuidance.number(bytes)?.let { state = it }
+                DISTANCE -> Iap2RouteGuidance.number(bytes)?.takeIf { it >= 0 }?.let { distance = it }
+                TIME_REMAINING -> Iap2RouteGuidance.number(bytes)?.takeIf { it >= 0 }?.let { remaining = it }
+                ETA -> Iap2RouteGuidance.number(bytes)?.takeIf { it > 0 }?.let { eta = it }
+                DESTINATION -> Iap2RouteGuidance.text(bytes)?.let { destination = it.ifEmpty { null } }
+            }
+        }
+        if (state == NO_ROUTE || state == ARRIVED) clear()
+        return current()
+    }
+
+    @Synchronized
+    fun reset() {
+        state = null
+        clear()
+    }
+
+    private fun clear() {
+        distance = null
+        remaining = null
+        eta = null
+        destination = null
+    }
+
+    private fun current(): Iap2Route? {
+        val metres = distance ?: return null
+        if (state !in ACTIVE) return null
+        return Iap2Route(metres, remaining, eta, destination)
+    }
+
+    private companion object {
+        const val STATE = 1
+        const val DESTINATION = 4
+        const val ETA = 5
+        const val TIME_REMAINING = 6
+        const val DISTANCE = 7
+        const val NO_ROUTE = 0L
+        const val ARRIVED = 2L
+        val ACTIVE = setOf(1L, 5L, 6L)
+    }
 }
