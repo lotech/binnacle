@@ -92,6 +92,7 @@ import java.net.Inet6Address
 import java.util.IdentityHashMap
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -277,6 +278,8 @@ class CarPlayController(
     private val wirelessActiveReported = AtomicBoolean(false)
     private val wirelessGeneration = AtomicInteger(0)
     private val nowPlaying = Iap2NowPlayingAccumulator()
+    /** The last route guidance log line per message ID (issue #180 test), cleared per iAP2 session. */
+    private val lastRouteGuidanceLines = ConcurrentHashMap<Int, String>()
 
     private var permissionCloseable: Closeable? = null
     private var attachCloseable: Closeable? = null
@@ -517,8 +520,15 @@ class CarPlayController(
         if (frame.messageId == Iap2RouteGuidance.ROUTE_GUIDANCE_UPDATE ||
             frame.messageId == Iap2RouteGuidance.MANEUVER_UPDATE
         ) {
-            // Test build for issue #180: log only, nothing reaches the dash yet.
-            Iap2RouteGuidance.describe(frame)?.let(::debugLog)
+            // Test build for issue #180: log only, nothing reaches the dash yet. A line is logged
+            // only when it differs from the last one for that message, so a steady route
+            // doesn't flood the log.
+            try {
+                val line = Iap2RouteGuidance.describe(frame) ?: return
+                if (lastRouteGuidanceLines.put(frame.messageId, line) != line) debugLog(line)
+            } catch (error: RuntimeException) {
+                debugLog("Could not decode iAP2 route guidance", error)
+            }
             return
         }
         if (frame.messageId != NOW_PLAYING_UPDATE) return
@@ -530,6 +540,7 @@ class CarPlayController(
     }
 
     private fun activateMediaRemote(session: Iap2Session) {
+        lastRouteGuidanceLines.clear()
         startFileTransferReceiver(session)
         activeMediaRemoteSession = session
         CarPlayMediaSessionBridge.setControlsAvailable(this, true)
@@ -1179,7 +1190,8 @@ class CarPlayController(
                 mfi = Iap2MfiAuthenticationClient(mfi),
             ).run(
                 // Bluetooth bring-up stays minimal; location, vehicle status and route guidance are
-                // declared only on the Wi-Fi tunnel, which carries the session once CarPlay runs.
+                // declared on the Wi-Fi tunnel (and a wired link), which carries the session once
+                // CarPlay runs.
                 identification = identification.copy(
                     locationInformationEnabled = false,
                     vehicleStatusCapabilities = emptySet(),

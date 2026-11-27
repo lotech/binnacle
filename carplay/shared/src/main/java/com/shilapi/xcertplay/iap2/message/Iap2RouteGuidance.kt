@@ -65,8 +65,7 @@ object Iap2RouteGuidance {
         val number = number(bytes) ?: return text(bytes)?.let { "\"$it\"" } ?: "0x${hex(bytes, MAX_HEX_BYTES)}"
         return when (kind) {
             Kind.METRES -> "${number}m"
-            Kind.EPOCH -> "$number(${Instant.ofEpochSecond(number)})".takeIf { number in 1..MAX_EPOCH }
-                ?: number.toString()
+            Kind.EPOCH -> if (number in 1..MAX_EPOCH) "$number(${Instant.ofEpochSecond(number)})" else number.toString()
             Kind.ROUTE_STATE -> named(number, ROUTE_STATES)
             Kind.MANEUVER_STATE -> named(number, MANEUVER_STATES)
             Kind.UNITS -> named(number, UNITS)
@@ -85,7 +84,7 @@ object Iap2RouteGuidance {
 
     /** NUL-terminated UTF-8 with no other control characters, or null. */
     private fun text(bytes: ByteArray): String? {
-        if (bytes.size < 2 || bytes.last() != 0.toByte()) return null
+        if (bytes.last() != 0.toByte()) return null
         val decoded = bytes.copyOf(bytes.size - 1).decodeToString()
         if (decoded.any { it.isISOControl() || it == '�' }) return null
         return if (decoded.length > MAX_TEXT_CHARS) decoded.take(MAX_TEXT_CHARS) + "…" else decoded

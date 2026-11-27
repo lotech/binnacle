@@ -172,7 +172,7 @@ class Iap2IdentificationClient(private val session: Iap2Session) {
                 IDENTIFICATION_ACCEPTED -> return current
                 IDENTIFICATION_REJECTED -> {
                     val rejected = Iap2BodyReader.of(frame).list().mapTo(LinkedHashSet()) { it.id }
-                    if (current.routeGuidanceEnabled) {
+                    if (current.routeGuidanceEnabled && Iap2RouteGuidance.DISPLAY_COMPONENT in rejected) {
                         // The route guidance component is the only experimental part: drop it and
                         // offer the identification that has always been accepted.
                         onProgress(

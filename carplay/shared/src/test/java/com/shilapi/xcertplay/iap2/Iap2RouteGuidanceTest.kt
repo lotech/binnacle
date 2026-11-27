@@ -79,6 +79,18 @@ class Iap2RouteGuidanceTest {
     }
 
     @Test
+    fun outOfRangeTimesAndEmptyTextDoNotBreakTheDecode() {
+        val frame = Iap2Messages.buildRaw(0x5201) {
+            raw(3, byteArrayOf(0))
+            u64(5, Long.MAX_VALUE)
+        }
+        assertEquals(
+            "iap2 route-guidance road=\"\" eta=${Long.MAX_VALUE}",
+            Iap2RouteGuidance.describe(frame),
+        )
+    }
+
+    @Test
     fun ignoresOtherMessagesAndReportsAMalformedBody() {
         assertNull(Iap2RouteGuidance.describe(Iap2Frame(0x5001, ByteArray(0))))
         assertEquals(
