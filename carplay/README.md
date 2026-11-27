@@ -124,6 +124,10 @@
 >   extension, or with the `video_colour_conversion` preference set to false
 > - Labelled "CarPlay" (was "xcertplay"), so Android's update screen and the app list name it
 >   the way the dash does
+> - Route guidance test (Settings → Vehicle → Navigation, off by default): declares an iAP2
+>   RouteGuidanceDisplayComponent on the Wi-Fi tunnel's identification, starts route guidance with
+>   its ID and logs each RouteGuidanceUpdate (0x5201) and ManeuverUpdate (0x5202) with a basic
+>   decode. If the iPhone rejects the identification, it is offered again without the component
 
 ## Features
 

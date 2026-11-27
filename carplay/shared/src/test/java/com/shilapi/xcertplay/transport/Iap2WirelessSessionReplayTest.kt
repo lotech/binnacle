@@ -95,6 +95,46 @@ class Iap2WirelessSessionReplayTest {
         assertTrue(location.stopped)
     }
 
+    @Test(timeout = 15_000)
+    fun routeGuidanceIsDeclaredAndStartedWithItsComponent() {
+        val replay = replay(
+            phoneLink = Iap2LinkConfig(maxOutgoing = 4),
+            phoneInitiates = true,
+            open = Iap2Session::openWireless,
+            locationProvider = null,
+            closeLocallyAfter = "iap2 rx=0xae01",
+            identification = IDENTIFICATION.copy(routeGuidanceEnabled = true),
+        )
+
+        assertEquals(30, parameters(replay.sent.first()).last().id)
+        val start = parameters(replay.sent.single { it.messageId == 0x5200 })
+        assertEquals(listOf(0), start.map { it.id })
+        assertArrayEquals(byteArrayOf(0, 6), start.single().payload)
+        assertTrue(replay.progress.contains("iap2 identification accepted with route guidance"))
+    }
+
+    @Test(timeout = 15_000)
+    fun rejectedRouteGuidanceFallsBackToThePlainIdentification() {
+        val replay = replay(
+            phoneLink = Iap2LinkConfig(maxOutgoing = 4),
+            phoneInitiates = true,
+            open = Iap2Session::openWireless,
+            locationProvider = null,
+            closeLocallyAfter = "iap2 rx=0xae01",
+            identification = IDENTIFICATION.copy(routeGuidanceEnabled = true),
+            rejectRouteGuidance = true,
+        )
+
+        val identifications = replay.sent.filter { it.messageId == 0x1d01 }
+        assertEquals(2, identifications.size)
+        assertEquals(30, parameters(identifications[0]).last().id)
+        assertEquals(listOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 17, 18, 24), parameters(identifications[1]).map { it.id })
+        assertEquals(0, replay.sent.single { it.messageId == 0x5200 }.payload.size)
+        assertTrue(replay.progress.any { "rejected [0x001e] with route guidance; retrying without it" in it })
+        assertTrue(replay.progress.contains("iap2 identification accepted"))
+        assertTrue(replay.outcome.isSuccess)
+    }
+
     private class Replay(
         val sent: List<Iap2Frame>,
         val forwarded: List<Iap2Frame>,
@@ -109,6 +149,8 @@ class Iap2WirelessSessionReplayTest {
         open: (BlockingDuplexByteStream, String, (String) -> Unit) -> Iap2Session,
         locationProvider: Iap2LocationProvider?,
         closeLocallyAfter: String?,
+        identification: Iap2IdentificationConfig = IDENTIFICATION,
+        rejectRouteGuidance: Boolean = false,
     ): Replay {
         var wifiConfigurations = 0
         val phone = ScriptedIap2Phone(
@@ -117,7 +159,9 @@ class Iap2WirelessSessionReplayTest {
             onLinkUp = { send(frame(0x1d00) {}) },
         ) { frame ->
             when (frame.messageId) {
-                0x1d01 -> {
+                0x1d01 -> if (rejectRouteGuidance && parameters(frame).any { it.id == 30 }) {
+                    send(frame(0x1d03) { void(30) })
+                } else {
                     send(frame(0x1d02) {})
                     send(frame(0xaa00) {})
                 }
@@ -165,7 +209,7 @@ class Iap2WirelessSessionReplayTest {
         }
         val outcome = runCatching {
             Iap2WirelessControlClient(session, Iap2MfiAuthenticationClient(FakeMfi)).run(
-                identification = IDENTIFICATION,
+                identification = identification,
                 endpoint = ENDPOINT,
                 bringUpTimeoutMillis = 10_000,
                 locationProvider = locationProvider,

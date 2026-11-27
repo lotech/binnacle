@@ -55,18 +55,19 @@ class Iap2WirelessControlClient(
         } else {
             deadlineAfter(bringUpTimeoutMillis)
         }
-        Iap2IdentificationClient(session).identify(
+        val accepted = Iap2IdentificationClient(session).identify(
             controlIdentification,
             requireRemaining(bringUpDeadlineNanos),
+            onProgress,
         )
-        onProgress("iap2 identification accepted")
+        onProgress("iap2 identification accepted" + if (accepted.routeGuidanceEnabled) " with route guidance" else "")
         var stage = Iap2WirelessControlStage.IDENTIFIED
 
         mfi.run(session, requireRemaining(bringUpDeadlineNanos), onProgress)
         stage = Iap2WirelessControlStage.AUTHENTICATED
         onProgress("iap2 authentication accepted")
 
-        for (subscription in Iap2WiredControlClient.subscriptions()) {
+        for (subscription in Iap2WiredControlClient.subscriptions(accepted.routeGuidanceComponentId())) {
             sendDuringBringUp(subscription, bringUpDeadlineNanos)
         }
         stage = Iap2WirelessControlStage.SUBSCRIBED

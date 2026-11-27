@@ -144,6 +144,20 @@ object Iap2Endpoints {
                     field(5, "isEnabled", Iap2WireType.VOID),
                 ),
             ),
+            field(
+                30,
+                "RouteGuidanceDisplayComponent",
+                Iap2WireType.GROUP,
+                children = listOf(
+                    field(0, "componentID", Iap2WireType.U16, required = true),
+                    field(1, "name", Iap2WireType.STRING, required = true),
+                    field(2, "maxCurrentRoadNameLength", Iap2WireType.U16),
+                    field(3, "maxDestinationNameLength", Iap2WireType.U16),
+                    field(4, "maxAfterManeuverRoadNameLength", Iap2WireType.U16),
+                    field(5, "maxManeuverDescriptionLength", Iap2WireType.U16),
+                    field(6, "maxGuidanceManeuverStorageCapacity", Iap2WireType.U16),
+                ),
+            ),
         ),
     )
     val IDENTIFICATION_ACCEPTED = endpoint(
@@ -432,6 +446,9 @@ object Iap2Endpoints {
         "StartRouteGuidanceUpdates",
         "Navigation",
         Iap2Direction.ACCESSORY_TO_IPHONE,
+        fields = listOf(
+            field(0, "RouteGuidanceDisplayComponentID", Iap2WireType.U16, repeatable = true),
+        ),
     )
     val STOP_ROUTE_GUIDANCE_UPDATES = endpoint(
         0x5203,

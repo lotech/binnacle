@@ -33,6 +33,7 @@ import com.shilapi.xcertplay.airplay.PairingStore
 import com.shilapi.xcertplay.iap2.message.Iap2HidMessages
 import com.shilapi.xcertplay.iap2.message.Iap2MediaRemoteCommand
 import com.shilapi.xcertplay.iap2.message.Iap2NowPlayingAccumulator
+import com.shilapi.xcertplay.iap2.message.Iap2RouteGuidance
 import com.shilapi.xcertplay.iap2.session.Iap2FileTransferReceiver
 import com.shilapi.xcertplay.iap2.session.Iap2Session
 import com.shilapi.xcertplay.iap2.wire.Iap2Frame
@@ -511,6 +512,13 @@ class CarPlayController(
             } catch (error: RuntimeException) {
                 debugLog("Could not decode iAP2 CallStateUpdate", error)
             }
+            return
+        }
+        if (frame.messageId == Iap2RouteGuidance.ROUTE_GUIDANCE_UPDATE ||
+            frame.messageId == Iap2RouteGuidance.MANEUVER_UPDATE
+        ) {
+            // Test build for issue #180: log only, nothing reaches the dash yet.
+            Iap2RouteGuidance.describe(frame)?.let(::debugLog)
             return
         }
         if (frame.messageId != NOW_PLAYING_UPDATE) return
@@ -1170,7 +1178,13 @@ class CarPlayController(
                 session = channel,
                 mfi = Iap2MfiAuthenticationClient(mfi),
             ).run(
-                identification = identification.copy(locationInformationEnabled = false, vehicleStatusCapabilities = emptySet()),
+                // Bluetooth bring-up stays minimal; location, vehicle status and route guidance are
+                // declared only on the Wi-Fi tunnel, which carries the session once CarPlay runs.
+                identification = identification.copy(
+                    locationInformationEnabled = false,
+                    vehicleStatusCapabilities = emptySet(),
+                    routeGuidanceEnabled = false,
+                ),
                 endpoint = endpoint,
                 bringUpTimeoutMillis = CONTROL_BRING_UP_TIMEOUT_MILLIS,
                 locationProvider = null,

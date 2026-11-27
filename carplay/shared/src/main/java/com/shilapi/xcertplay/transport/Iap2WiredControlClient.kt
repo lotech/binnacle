@@ -50,18 +50,19 @@ class Iap2WiredControlClient(
             vehicleSpeedEnabled = 4 in locationComponents,
         )
         val bringUpDeadlineNanos = deadlineAfter(bringUpTimeoutMillis)
-        Iap2IdentificationClient(session).identify(
+        val accepted = Iap2IdentificationClient(session).identify(
             controlIdentification,
             requireRemaining(bringUpDeadlineNanos),
+            onProgress,
         )
-        onProgress("iap2 identification accepted")
+        onProgress("iap2 identification accepted" + if (accepted.routeGuidanceEnabled) " with route guidance" else "")
         var stage = Iap2WiredControlStage.IDENTIFIED
         mfi.run(session, requireRemaining(bringUpDeadlineNanos), onProgress)
         stage = Iap2WiredControlStage.AUTHENTICATED
         onProgress("iap2 authentication accepted")
 
         sendDuringBringUp(powerSourceUpdate(availableCurrentMilliAmps), bringUpDeadlineNanos)
-        for (subscription in subscriptions()) {
+        for (subscription in subscriptions(accepted.routeGuidanceComponentId())) {
             sendDuringBringUp(subscription, bringUpDeadlineNanos)
         }
         stage = Iap2WiredControlStage.SUBSCRIBED
@@ -218,7 +219,8 @@ class Iap2WiredControlClient(
             Iap2ControlMessages.powerSourceUpdate(availableCurrentMilliAmps, charging = true)
 
         /** Exact five subscription requests emitted by LIVI's wired bring-up. */
-        fun subscriptions(): List<Iap2Frame> = Iap2ControlMessages.subscriptions()
+        fun subscriptions(routeGuidanceComponentId: Int? = null): List<Iap2Frame> =
+            Iap2ControlMessages.subscriptions(routeGuidanceComponentId)
 
         /** Builds the wired-only CarPlayStartSession message; no NCM or AirPlay socket is opened. */
         fun carPlayStartSession(endpoint: Iap2WiredCarPlayEndpoint): Iap2Frame =
