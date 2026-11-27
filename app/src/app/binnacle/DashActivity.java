@@ -292,6 +292,7 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
             android.util.Log.i("binnacle", "CarPlay hasn't drawn for " + CARPLAY_LOST_MS / 1000 + " s; back to the dash");
             showCarPlay(CARPLAY_OFF);
             setNowPlaying(null);
+            right.setRoute(null);
         }
     };
 

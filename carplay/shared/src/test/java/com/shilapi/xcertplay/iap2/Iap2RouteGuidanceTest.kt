@@ -136,6 +136,8 @@ class Iap2RouteGuidanceTest {
         assertEquals(Iap2Route(500), routes.update(Iap2Messages.buildRaw(0x5201) { u8(1, 5) }))   // rerouting
         assertEquals(Iap2Route(500), routes.update(Iap2Frame(0x5201, byteArrayOf(0, 9, 1))))
         assertEquals(Iap2Route(500), routes.update(Iap2Messages.buildRaw(0x5202) { u8(1, 0) }))
+        // an empty destination is no destination, and the distance after it still counts
+        assertEquals(Iap2Route(400), routes.update(Iap2Messages.buildRaw(0x5201) { raw(4, ByteArray(0)); u32(7, 400L) }))
         routes.reset()
         assertNull(routes.update(Iap2Messages.buildRaw(0x5201) { u32(7, 500L) }))
     }

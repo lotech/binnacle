@@ -157,7 +157,9 @@ public class RightPanelView extends View {
         String line = null;
         int carRange = soc >= 0 && !estimated ? carRange(moves) : -1;   // as before: not while estimated
         boolean low = false;
-        if (route != null) {
+        if (estimated && soc >= 0) {
+            line = "Estimated";                           // quiet (the owner): no colour, no time; before the route, so a saved % stays marked
+        } else if (route != null) {
             // a CarPlay route (issue #180): the distance left and, on short trips with a live %,
             // the % at arrival from the same km-per-% as the range below
             double km = route.distanceM / 1000.0;
@@ -165,13 +167,11 @@ public class RightPanelView extends View {
             double kmPerPercent = carRange >= 0 && soc > 0
                     ? (Units.carMiles(car) ? carRange * Units.KM_PER_MILE : carRange) / (double) soc
                     : fullRangeKm() / 100.0;
-            int arrival = estimated || charging ? -1 : Route.arrivalPercent(soc, km, kmPerPercent);
+            int arrival = charging ? -1 : Route.arrivalPercent(soc, km, kmPerPercent);
             if (arrival >= 0) {
                 line = Route.distanceText(Units.distance(app, km)) + " " + Units.distLabel(app) + " · arrive ≈ " + arrival + "% est.";
                 low = arrival <= 10;
             }
-        } else if (estimated && soc >= 0) {
-            line = "Estimated";                           // quiet (the owner): no colour, no time
         } else if (carRange >= 0) {
             // the car's own range where jhmail carries it (issue #91), in place of the estimate
             line = Units.carDistance(app, carRange) + " " + Units.distLabel(app);

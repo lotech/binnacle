@@ -10,22 +10,22 @@ object CarPlayRouteFeed {
     private var observer: ((Iap2Route?) -> Unit)? = null
     private var current: Iap2Route? = null
 
-    /** One observer at a time; null stops it. It gets the current route at once, then each change. */
+    /**
+     * One observer at a time; null stops it. It gets the current route at once, then each change,
+     * called under the lock so deliveries keep the order the routes were set in: it must only post
+     * (CarPlayEmbedService hands each one to its main thread).
+     */
+    @Synchronized
     fun observe(next: ((Iap2Route?) -> Unit)?) {
-        val initial = synchronized(this) {
-            observer = next
-            current
-        }
-        next?.invoke(initial)
+        observer = next
+        next?.invoke(current)
     }
 
-    /** Called on the iAP2 thread. */
+    /** Called on the iAP2 thread, and with null when a session ends. */
+    @Synchronized
     fun publish(route: Iap2Route?) {
-        val target = synchronized(this) {
-            if (route == current) return
-            current = route
-            observer
-        } ?: return
-        target(route)
+        if (route == current) return
+        current = route
+        observer?.invoke(route)
     }
 }

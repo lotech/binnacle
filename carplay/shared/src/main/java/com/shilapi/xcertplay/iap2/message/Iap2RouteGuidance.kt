@@ -84,7 +84,7 @@ object Iap2RouteGuidance {
 
     /** NUL-terminated UTF-8 with no other control characters, or null. */
     internal fun text(bytes: ByteArray): String? {
-        if (bytes.last() != 0.toByte()) return null
+        if (bytes.isEmpty() || bytes.last() != 0.toByte()) return null
         val decoded = bytes.copyOf(bytes.size - 1).decodeToString()
         if (decoded.any { it.isISOControl() || it == '�' }) return null
         return if (decoded.length > MAX_TEXT_CHARS) decoded.take(MAX_TEXT_CHARS) + "…" else decoded

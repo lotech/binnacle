@@ -528,13 +528,17 @@ class CarPlayController(
             // logged, only when its line differs from the last one for that message, so a steady
             // route doesn't flood the log.
             try {
-                if (frame.messageId == Iap2RouteGuidance.ROUTE_GUIDANCE_UPDATE) {
-                    CarPlayRouteFeed.publish(route.update(frame))
-                }
-                val line = Iap2RouteGuidance.describe(frame) ?: return
-                if (lastRouteGuidanceLines.put(frame.messageId, line) != line) debugLog(line)
+                val line = Iap2RouteGuidance.describe(frame)
+                if (line != null && lastRouteGuidanceLines.put(frame.messageId, line) != line) debugLog(line)
             } catch (error: RuntimeException) {
                 debugLog("Could not decode iAP2 route guidance", error)
+            }
+            if (frame.messageId == Iap2RouteGuidance.ROUTE_GUIDANCE_UPDATE) {
+                try {
+                    CarPlayRouteFeed.publish(route.update(frame))
+                } catch (error: RuntimeException) {
+                    debugLog("Could not read the iAP2 route", error)
+                }
             }
             return
         }
@@ -548,6 +552,9 @@ class CarPlayController(
 
     private fun activateMediaRemote(session: Iap2Session) {
         lastRouteGuidanceLines.clear()
+        // a new session starts with no route: nothing carries over from one that hasn't stopped yet
+        route.reset()
+        CarPlayRouteFeed.publish(null)
         startFileTransferReceiver(session)
         activeMediaRemoteSession = session
         CarPlayMediaSessionBridge.setControlsAvailable(this, true)
