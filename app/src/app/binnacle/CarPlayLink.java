@@ -39,6 +39,8 @@ final class CarPlayLink implements ServiceConnection {
         void onVideoLayout(int[] video);
         /** What the iPhone is playing, or null for nothing (also when the link is lost). */
         void onNowPlaying(NowPlaying now);
+        /** The route the iPhone is guiding to, or null for none (xcertplay API 3; issue #180). */
+        void onRoute(Route route);
     }
 
     static final int STATE_IDLE = 0, STATE_NEEDS_SETUP = 1, STATE_CONNECTING = 2, STATE_STREAMING = 3,
@@ -52,7 +54,7 @@ final class CarPlayLink implements ServiceConnection {
     /** ICarPlayEmbed transaction codes (FIRST_CALL_TRANSACTION + position), fixed by API 2. */
     private static final int TX_VERSION = 1, TX_LISTENER = 2, TX_ATTACH = 3, TX_DETACH = 4, TX_TOUCH = 5,
             TX_KEY = 6, TX_START = 7, TX_DISCONNECT = 8, TX_SETTINGS = 9, TX_SIZES = 10;
-    private static final int MSG_STATE = 1, MSG_HOST_UI = 2, MSG_LAYOUT = 3, MSG_NOW_PLAYING = 4;
+    private static final int MSG_STATE = 1, MSG_HOST_UI = 2, MSG_LAYOUT = 3, MSG_NOW_PLAYING = 4, MSG_ROUTE = 5;
 
     private final Context context;
     private final Listener listener;
@@ -86,6 +88,9 @@ final class CarPlayLink implements ServiceConnection {
                     listener.onVideoLayout(video != null && video.length == 4 ? video : new int[0]);
                 } else if (m.what == MSG_NOW_PLAYING) {
                     listener.onNowPlaying(m.arg1 == 1 && m.peekData() != null ? nowPlaying(m.peekData()) : null);
+                } else if (m.what == MSG_ROUTE) {
+                    long metres = m.peekData() != null ? m.peekData().getLong("distance", -1) : -1;
+                    listener.onRoute(m.arg1 == 1 && metres >= 0 ? new Route(metres) : null);
                 }
             }
         });

@@ -137,7 +137,7 @@
   "settings.vehicle.precise_positioning.support": "実際の測位品質、使用衛星数、海抜高度も送信します。Android が提供できない値は従来どおりです",
   "settings.vehicle.navigation": "ナビゲーション",
   "settings.vehicle.route_guidance": "経路案内を受信（テスト）",
-  "settings.vehicle.route_guidance.support": "iPhone の経路をログに記録します。CarPlay が接続できない場合はオフにしてください",
+  "settings.vehicle.route_guidance.support": "iPhone の経路をダッシュボードに共有します。CarPlay が接続できない場合はオフにしてください",
   "settings.vehicle.properties": "車両プロパティ",
   "settings.vehicle.source": "プロパティソース",
   "settings.vehicle.source.aaos": "標準 Android Automotive",

@@ -13,6 +13,8 @@ import android.view.Surface
 import com.shilapi.xcertplay.embed.ICarPlayEmbed
 import com.shilapi.xcertplay.media.CarPlayNowPlaying
 import com.shilapi.xcertplay.media.CarPlayNowPlayingFeed
+import com.shilapi.xcertplay.media.CarPlayRouteFeed
+import com.shilapi.xcertplay.iap2.message.Iap2Route
 import android.os.Message
 import android.os.Messenger
 import java.util.concurrent.CountDownLatch
@@ -48,12 +50,16 @@ class CarPlayEmbedService : Service() {
     private var artSeq = 0
     private var sentArtId = -1                          // the cover this listener already has
     private var nowPlayingSent = false
+    private var route: Iap2Route? = null
+    private var routeSent: Iap2Route? = null
+    private var routeSentOnce = false
 
     override fun onCreate() {
         super.onCreate()
         session.init(this)
         session.register(client)
         CarPlayNowPlayingFeed.observe { next -> mainHandler.post { onNowPlaying(next) } }
+        CarPlayRouteFeed.observe { next -> mainHandler.post { route = next; publishRoute() } }
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
@@ -66,6 +72,7 @@ class CarPlayEmbedService : Service() {
 
     override fun onDestroy() {
         CarPlayNowPlayingFeed.observe(null)
+        CarPlayRouteFeed.observe(null)
         dropClient("embed service destroyed")
         session.unregister(client)
         super.onDestroy()
@@ -83,6 +90,8 @@ class CarPlayEmbedService : Service() {
                 lastLayout = null
                 sentArtId = -1
                 nowPlayingSent = false
+                routeSent = null
+                routeSentOnce = false
                 if (next != null) {
                     val death = IBinder.DeathRecipient { onMain { dropClient("embedding client died") } }
                     try {
@@ -94,6 +103,7 @@ class CarPlayEmbedService : Service() {
                     }
                     publishState()
                     publishNowPlaying()
+                    publishRoute()
                 }
             }
         }
@@ -320,6 +330,32 @@ class CarPlayEmbedService : Service() {
         }
     }
 
+    /**
+     * The route the iPhone is guiding to (issue #180): what 5, arg1 1 = a route (data: long
+     * "distance" metres left, and when known long "remaining" seconds left, long "eta" seconds
+     * since 1970, string "destination"), arg1 0 = none. Sent when it changes.
+     */
+    private fun publishRoute() {
+        val target = listener ?: return
+        val now = route
+        if (routeSentOnce && now == routeSent) return
+        if (!routeSentOnce && now == null) return
+        val data = android.os.Bundle()
+        if (now != null) {
+            data.putLong("distance", now.distanceMetres)
+            now.timeRemainingSeconds?.let { data.putLong("remaining", it) }
+            now.etaEpochSeconds?.let { data.putLong("eta", it) }
+            now.destination?.let { data.putString("destination", it) }
+        }
+        try {
+            target.send(Message.obtain(null, MSG_ROUTE, if (now != null) 1 else 0, 0).apply { this.data = data })
+            routeSent = now
+            routeSentOnce = true
+        } catch (error: RemoteException) {
+            Log.w(TAG, "embedding client unreachable", error)
+        }
+    }
+
     /** The iPhone's cover scaled to fit 256 px and re-encoded, so it stays well inside a binder call. */
     private fun smallCover(data: ByteArray): ByteArray? = runCatching {
         val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -408,11 +444,12 @@ class CarPlayEmbedService : Service() {
 
     companion object {
         private const val TAG = "xcertplay-embed"
-        const val API_VERSION = 2
+        const val API_VERSION = 3
         const val MSG_STATE = 1
         const val MSG_HOST_UI = 2
         const val MSG_LAYOUT = 3
         const val MSG_NOW_PLAYING = 4
+        const val MSG_ROUTE = 5
         private const val COVER_PX = 256
         private const val MAX_SIZE = 8192
         private const val MAX_DECLARED_SIZES = 4

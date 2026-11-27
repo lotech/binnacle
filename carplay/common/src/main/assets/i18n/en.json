@@ -128,7 +128,7 @@
   "settings.vehicle.precise_positioning.support": "Also sends the real fix quality, satellites used and sea-level altitude; any value Android cannot provide is left as before",
   "settings.vehicle.navigation": "Navigation",
   "settings.vehicle.route_guidance": "Receive route guidance (test)",
-  "settings.vehicle.route_guidance.support": "Logs the iPhone's route. Turn off if CarPlay won't connect",
+  "settings.vehicle.route_guidance.support": "Shares the iPhone's route with the dash. Turn off if CarPlay won't connect",
   "settings.vehicle.properties": "Vehicle properties",
   "settings.vehicle.source": "Property source",
   "settings.vehicle.source.aaos": "Standard Android Automotive",

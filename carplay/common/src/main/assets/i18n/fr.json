@@ -137,7 +137,7 @@
   "settings.vehicle.precise_positioning.support": "Envoie aussi la qualité réelle du fix, les satellites utilisés et l'altitude au-dessus du niveau de la mer ; toute valeur qu'Android ne peut fournir reste inchangée",
   "settings.vehicle.navigation": "Navigation",
   "settings.vehicle.route_guidance": "Recevoir le guidage (test)",
-  "settings.vehicle.route_guidance.support": "Enregistre l’itinéraire de l’iPhone dans le journal. Désactivez si CarPlay ne se connecte plus",
+  "settings.vehicle.route_guidance.support": "Partage l’itinéraire de l’iPhone avec le tableau de bord. Désactivez si CarPlay ne se connecte plus",
   "settings.vehicle.properties": "Propriétés du véhicule",
   "settings.vehicle.source": "Source des propriétés",
   "settings.vehicle.source.aaos": "Android Automotive standard",

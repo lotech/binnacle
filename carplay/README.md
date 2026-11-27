@@ -129,6 +129,10 @@
 >   its ID and logs each RouteGuidanceUpdate (0x5201) and ManeuverUpdate (0x5202) with a basic
 >   decode (a line only when it changes). If the iPhone rejects the component, the identification
 >   is offered again without it
+> - Route to the dash (embedding API 3): with route guidance on, the route's distance left (and
+>   time left, ETA and destination when the iPhone sends them) goes to the embedding app as
+>   message 5 whenever it changes, and "none" when the route or the session ends. Apple Maps
+>   sends route guidance; Waze sent none in a car test (27 Nov 2026)
 
 ## Features
 

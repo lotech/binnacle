@@ -217,6 +217,7 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
         @Override public void onLinkChanged(boolean connected) {
             if (!connected) {
                 setNowPlaying(null);
+                right.setRoute(null);
                 centre.setCarPlayStage(null);
             }
             else XcertplayLocation.restore();     // after a reboot or an xcertplay update, before CarPlay starts
@@ -245,6 +246,9 @@ public class DashActivity extends Activity implements DashApp.Listener, RightPan
         }
         @Override public void onNowPlaying(NowPlaying now) {
             setNowPlaying(now);
+        }
+        @Override public void onRoute(Route route) {
+            right.setRoute(route);
         }
         @Override public void onCarPlayState(int state, String stage) {
             carplay.showState(state, stage);

@@ -12,7 +12,7 @@ import android.view.Surface;
  * The session keeps running when the client unbinds; it ends only when xcertplay is closed or
  * the client calls disconnect().
  *
- * API version 2. Clients may call it with plain Binder transactions, so the order below is fixed:
+ * API version 3 (3 added the route message, what 5; no new methods). Clients may call it with plain Binder transactions, so the order below is fixed:
  * transaction codes are FIRST_CALL_TRANSACTION (1) + the method's position (getApiVersion = 1 ...
  * declareSizes = 10). New methods go at the end only.
  */
@@ -31,7 +31,10 @@ interface ICarPlayEmbed {
      * now playing (arg1 1 = something, 0 = nothing; data "title", "artist", "album", "app",
      * long "duration" / "position" ms, boolean "playing" / "controls", int "artId", byte[] "art"
      * = a JPEG cover of at most 256 px, only when new to this listener). Controls go back as
-     * media keys through sendKey.
+     * media keys through sendKey; what 5 = the route the iPhone is guiding to (arg1 1 = a route,
+     * 0 = none; data long "distance" metres left, and when known long "remaining" seconds left,
+     * long "eta" seconds since 1970, string "destination"), sent when it changes. Only with
+     * route guidance on in xcertplay's settings.
      */
     void setListener(in Messenger listener);
 
