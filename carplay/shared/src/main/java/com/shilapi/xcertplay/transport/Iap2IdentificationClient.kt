@@ -4,6 +4,7 @@ import com.shilapi.xcertplay.iap2.body.Iap2BodyReader
 import com.shilapi.xcertplay.iap2.catalog.Iap2Endpoints
 import com.shilapi.xcertplay.iap2.message.Iap2HidMessages
 import com.shilapi.xcertplay.iap2.message.Iap2Messages
+import com.shilapi.xcertplay.iap2.message.Iap2RouteGuidance
 import com.shilapi.xcertplay.iap2.session.Iap2Session
 import com.shilapi.xcertplay.iap2.wire.Iap2Frame
 import java.io.IOException
@@ -56,6 +57,12 @@ data class Iap2IdentificationConfig(
     val gpsLocationEnabled: Boolean = true,
     val vehicleSpeedEnabled: Boolean = false,
     val vehicleStatusCapabilities: Set<Int> = emptySet(),
+    /**
+     * Declares an iAP2 RouteGuidanceDisplayComponent so the iPhone can send route guidance
+     * (0x5201/0x5202). Off by default: an identification the iPhone dislikes can stop CarPlay, so
+     * [Iap2IdentificationClient.identify] retries once without it if the iPhone rejects it.
+     */
+    val routeGuidanceEnabled: Boolean = false,
     /** USB-IF identity used by StartHID; defaults match this app's existing AirPlay HID identity. */
     val hidVendorIdentifier: Int = 2,
     val hidProductIdentifier: Int = 1,
@@ -109,6 +116,10 @@ data class Iap2IdentificationConfig(
     }
 }
 
+/** The declared RouteGuidanceDisplayComponent's ID, or null when none is declared. */
+internal fun Iap2IdentificationConfig.routeGuidanceComponentId(): Int? =
+    if (routeGuidanceEnabled) Iap2RouteGuidance.COMPONENT_ID else null
+
 /** Identification failures distinguished from the underlying iAP2 transport failure. */
 sealed class Iap2IdentificationException(message: String) : IOException(message) {
     class Rejected(parameterIds: Set<Int>, rawBody: ByteArray) : Iap2IdentificationException(
@@ -131,9 +142,19 @@ sealed class Iap2IdentificationException(message: String) : IOException(message)
  * CarPlay, subscription, power, media, or UI service.
  */
 class Iap2IdentificationClient(private val session: Iap2Session) {
-    /** Waits for link negotiation, then completes the 1D00/1D01/1D02 exchange. */
+    /**
+     * Waits for link negotiation, then completes the 1D00/1D01/1D02 exchange.
+     *
+     * Returns the identification the iPhone accepted: [config] itself, or, when the iPhone
+     * rejected a route guidance declaration, [config] without it (one retry, see
+     * [Iap2IdentificationConfig.routeGuidanceEnabled]).
+     */
     @Throws(IphoneUsbException::class, Iap2IdentificationException::class)
-    fun identify(config: Iap2IdentificationConfig, timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS) {
+    fun identify(
+        config: Iap2IdentificationConfig,
+        timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
+        onProgress: (String) -> Unit = {},
+    ): Iap2IdentificationConfig {
         require(timeoutMillis in 1..MAXIMUM_TIMEOUT_MILLIS) {
             "timeoutMillis must be in 1..$MAXIMUM_TIMEOUT_MILLIS"
         }
@@ -142,14 +163,27 @@ class Iap2IdentificationClient(private val session: Iap2Session) {
             throw IphoneUsbException.TimedOut("Timed out waiting for iAP2 control session readiness")
         }
 
+        var current = config
         while (true) {
             val frame = session.recv(remainingMillis(deadlineNanos))
                 ?: throw IphoneUsbException.TimedOut("Timed out waiting for iAP2 identification")
             when (frame.messageId) {
-                START_IDENTIFICATION -> session.send(identificationInformation(config), remainingMillis(deadlineNanos))
-                IDENTIFICATION_ACCEPTED -> return
+                START_IDENTIFICATION -> session.send(identificationInformation(current), remainingMillis(deadlineNanos))
+                IDENTIFICATION_ACCEPTED -> return current
                 IDENTIFICATION_REJECTED -> {
                     val rejected = Iap2BodyReader.of(frame).list().mapTo(LinkedHashSet()) { it.id }
+                    if (current.routeGuidanceEnabled && Iap2RouteGuidance.DISPLAY_COMPONENT in rejected) {
+                        // The route guidance component is the only experimental part: drop it and
+                        // offer the identification that has always been accepted.
+                        onProgress(
+                            "iap2 identification rejected " +
+                                rejected.sorted().joinToString(prefix = "[", postfix = "]") { "0x${it.toString(16).padStart(4, '0')}" } +
+                                " with route guidance; retrying without it",
+                        )
+                        current = current.copy(routeGuidanceEnabled = false)
+                        session.send(identificationInformation(current), remainingMillis(deadlineNanos))
+                        continue
+                    }
                     throw Iap2IdentificationException.Rejected(rejected, frame.payload)
                 }
                 else -> throw Iap2IdentificationException.UnexpectedMessage(frame.messageId)
@@ -266,6 +300,17 @@ class Iap2IdentificationClient(private val session: Iap2Session) {
                         u16(3, 1)
                         void(4)
                         void(5)
+                    }
+                }
+                if (config.routeGuidanceEnabled) {
+                    group(Iap2RouteGuidance.DISPLAY_COMPONENT) {
+                        u16(0, Iap2RouteGuidance.COMPONENT_ID)
+                        string(1, config.name)
+                        u16(2, Iap2RouteGuidance.MAX_NAME_LENGTH) // MaxCurrentRoadNameLength
+                        u16(3, Iap2RouteGuidance.MAX_NAME_LENGTH) // MaxDestinationNameLength
+                        u16(4, Iap2RouteGuidance.MAX_NAME_LENGTH) // MaxAfterManeuverRoadNameLength
+                        u16(5, Iap2RouteGuidance.MAX_NAME_LENGTH) // MaxManeuverDescriptionLength
+                        u16(6, Iap2RouteGuidance.MAX_MANEUVERS) // MaxGuidanceManeuverStorageCapacity
                     }
                 }
             }

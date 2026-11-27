@@ -48,6 +48,7 @@ object AirPlayPersistence {
     private const val KEY_ADVANCED_AUDIO_CHANNEL_MAPPING = "advanced_audio_channel_mapping"
     private const val KEY_AUDIO_FOCUS_ENABLED = "audio_focus_enabled"
     private const val KEY_HEAD_UNIT_CALL_STATE = "head_unit_call_state"
+    private const val KEY_ROUTE_GUIDANCE_ENABLED = "route_guidance_enabled"
     private const val KEY_MAIN_MEDIA_AUDIO_BUFFER_DURATION_MS = "main_media_audio_buffer_duration_ms"
     private const val KEY_MICROPHONE_GAIN_PERCENT = "microphone_gain_percent"
     private const val KEY_CALL_ECHO_STRENGTH = "call_echo_strength"
@@ -221,6 +222,17 @@ object AirPlayPersistence {
     fun saveHeadUnitCallState(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putBoolean(KEY_HEAD_UNIT_CALL_STATE, enabled)
+            .apply()
+    }
+
+    /** Off by default: a route guidance declaration the iPhone dislikes could stop CarPlay (issue #180). */
+    fun loadRouteGuidanceEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_ROUTE_GUIDANCE_ENABLED, false)
+
+    fun saveRouteGuidanceEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_ROUTE_GUIDANCE_ENABLED, enabled)
             .apply()
     }
 

@@ -383,6 +383,7 @@ class CarPlayHostActivity : ComponentActivity() {
     private var advancedAudioChannelMapping by mutableStateOf(false)
     private var audioFocusEnabled by mutableStateOf(true)
     private var headUnitCallState by mutableStateOf(true)
+    private var routeGuidanceEnabled by mutableStateOf(false)
     private var callEchoStrength by mutableIntStateOf(CallEchoSettings.DEFAULT_STRENGTH)
     private var callEchoThreshold by mutableIntStateOf(CallEchoSettings.DEFAULT_THRESHOLD)
     private var audioQuality by mutableStateOf(AudioQualitySettings())
@@ -750,6 +751,7 @@ class CarPlayHostActivity : ComponentActivity() {
                 AirPlayPersistence.loadAdvancedAudioChannelMapping(this)
         audioFocusEnabled = AirPlayPersistence.loadAudioFocusEnabled(this)
         headUnitCallState = AirPlayPersistence.loadHeadUnitCallState(this)
+        routeGuidanceEnabled = AirPlayPersistence.loadRouteGuidanceEnabled(this)
         callEchoStrength = AirPlayPersistence.loadCallEchoStrength(this)
         callEchoThreshold = AirPlayPersistence.loadCallEchoThreshold(this)
         audioQuality = AirPlayPersistence.loadAudioQuality(this)
@@ -2840,6 +2842,18 @@ class CarPlayHostActivity : ComponentActivity() {
             }
         }
 
+        SectionHeader(tr("settings.vehicle.navigation"))
+        SettingsGroup {
+            row {
+                SwitchRow(
+                    title = tr("settings.vehicle.route_guidance"),
+                    support = tr("settings.vehicle.route_guidance.support"),
+                    checked = routeGuidanceEnabled,
+                    onCheckedChange = ::onRouteGuidanceChanged,
+                )
+            }
+        }
+
         SectionHeader(tr("settings.vehicle.properties"))
         val profile = runCatching { selectedVehicleProfile() }.getOrNull()
         val vehicleEntry = selectedVehicleDataEntry()
@@ -3711,6 +3725,13 @@ class CarPlayHostActivity : ComponentActivity() {
         callEchoThreshold = next
         AirPlayPersistence.saveCallEchoThreshold(this, next)
         appendLog("Call echo threshold ${CallEchoSettings.farActiveDb(next).toInt()} dB; applies to the next connection")
+    }
+
+    private fun onRouteGuidanceChanged(checked: Boolean) {
+        if (routeGuidanceEnabled == checked) return
+        routeGuidanceEnabled = checked
+        AirPlayPersistence.saveRouteGuidanceEnabled(this, checked)
+        appendLog("Route guidance ${if (checked) "enabled" else "disabled"}; applies to the next connection")
     }
 
     private fun onHeadUnitCallStateChanged(checked: Boolean) {

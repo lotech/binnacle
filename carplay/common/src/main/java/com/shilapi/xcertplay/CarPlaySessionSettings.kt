@@ -49,6 +49,8 @@ internal data class CarPlaySessionSettings(
     val audioFocusEnabled: Boolean,
     /** Tell the head unit's CAN app when a CarPlay call starts (HeadUnitCallState). */
     val headUnitCallState: Boolean = true,
+    /** Declare iAP2 route guidance and log what the iPhone sends (issue #180 test, off by default). */
+    val routeGuidanceEnabled: Boolean = false,
     val audioQuality: AudioQualitySettings,
     val mainMediaAudioBufferDurationMs: Int,
     val microphoneGainPercent: Int,
@@ -119,6 +121,7 @@ internal data class CarPlaySessionSettings(
             hardwareVersion = "1.0",
             carPlayUsbInterfaceNumber = 3,
             locationInformationEnabled = locationReportingEnabled,
+            routeGuidanceEnabled = routeGuidanceEnabled,
         ),
         transport = if (wirelessEnabled) CarPlayTransport.WIRELESS else CarPlayTransport.WIRED,
         wirelessHotspotMode = wirelessHotspotMode,
@@ -254,6 +257,7 @@ internal data class CarPlaySessionSettings(
                         AirPlayPersistence.loadAdvancedAudioChannelMapping(context),
                 audioFocusEnabled = AirPlayPersistence.loadAudioFocusEnabled(context),
                 headUnitCallState = AirPlayPersistence.loadHeadUnitCallState(context),
+                routeGuidanceEnabled = AirPlayPersistence.loadRouteGuidanceEnabled(context),
                 audioQuality = AirPlayPersistence.loadAudioQuality(context),
                 mainMediaAudioBufferDurationMs = AirPlayPersistence.loadMainMediaAudioBufferDurationMs(context),
                 microphoneGainPercent = AirPlayPersistence.loadMicrophoneGainPercent(context),
